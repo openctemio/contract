@@ -1,0 +1,13 @@
+version: "2"
+
+# Pinned in CI (.github/workflows/ci.yml). Upgrade both together.
+linters:
+  default: standard
+  enable:
+    - misspell
+    - unconvert
+    - gocritic
+
+formatters:
+  enable:
+    - gofmt
