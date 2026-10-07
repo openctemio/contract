@@ -28,8 +28,8 @@ func TestEmbeddedTaxonomyLoads(t *testing.T) {
 	if _, err := load(taxonomyJSON); err != nil {
 		t.Fatal(err)
 	}
-	if got := len(All()); got != 29 {
-		t.Fatalf("capabilities = %d, want 29 (25 v1 + 4 later)", got)
+	if got := len(All()); got != 30 {
+		t.Fatalf("capabilities = %d, want 30 (26 v1 + 4 later)", got)
 	}
 }
 
@@ -47,7 +47,8 @@ func TestPlatformIDsKept(t *testing.T) {
 }
 
 func TestRoutedParamsMatchPlatform(t *testing.T) {
-	// The standard params the platform already exposes for routed stages.
+	// The standard params the platform already exposes for routed stages
+	// stay, in order; a new param may only follow them (additive).
 	want := map[string][]string{
 		"discover.subdomains":  {"sources", "recursive", "max_results"},
 		"resolve.dns":          {"record_types", "wildcard_filter"},
@@ -69,7 +70,7 @@ func TestRoutedParamsMatchPlatform(t *testing.T) {
 		for _, p := range c.Params {
 			got = append(got, p.Name)
 		}
-		if !reflect.DeepEqual(got, names) {
+		if len(got) < len(names) || !reflect.DeepEqual(got[:len(names)], names) {
 			t.Errorf("%s params = %v, want %v", id, got, names)
 		}
 	}

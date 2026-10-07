@@ -16,7 +16,7 @@ var (
 	d3fendRE = regexp.MustCompile(`^D3-[A-Z]{2,8}$`)
 	capecRE  = regexp.MustCompile(`^CAPEC-[0-9]{1,5}$`)
 	nameRE   = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
-	selectRE = regexp.MustCompile(`^(assets|findings|dependencies)(?:\[type=([a-z0-9_]+(?:\|[a-z0-9_]+)*)\])?$`)
+	selectRE = regexp.MustCompile(`^(assets|findings|dependencies|endpoints)(?:\[type=([a-z0-9_]+(?:\|[a-z0-9_]+)*)\])?$`)
 	pathRE   = regexp.MustCompile(`^[a-z_][a-z0-9_]*(?:\[\])?(?:\.[a-z_][a-z0-9_]*(?:\[\])?)*$`)
 )
 
@@ -70,7 +70,7 @@ func (t taxonomy) validate() error {
 			add("port type %q: duplicate", p.Type)
 		}
 		ports[p.Type] = true
-		if p.Type != PortFinding && len(p.Carries) == 0 {
+		if p.Type != PortFinding && p.Type != PortEndpoint && len(p.Carries) == 0 {
 			add("port type %q carries nothing", p.Type)
 		}
 		for _, c := range p.Carries {
@@ -129,7 +129,7 @@ func (t taxonomy) validate() error {
 		for _, k := range c.ExtraOutputs {
 			family, value, _ := strings.Cut(k, ":")
 			switch {
-			case k == "dependency":
+			case k == "dependency", k == "endpoint":
 			case family == "asset" && (value == "*" || assetTypes[value]):
 			default:
 				add("%s: extra output %q", where, k)
@@ -241,6 +241,14 @@ func (r Rule) validate(c Capability, ports []PortTypeInfo) error {
 			if !c.mayEmit(ports, "finding:"+ft) {
 				return fmt.Errorf("select %q: finding type %q", r.Select, ft)
 			}
+		}
+	case "endpoints":
+		root = reflect.TypeOf(ctis.Endpoint{})
+		if m[2] != "" {
+			return errors.New("endpoints take no type filter")
+		}
+		if !c.mayEmit(ports, "endpoint") {
+			return fmt.Errorf("select %q: the capability emits no endpoints", r.Select)
 		}
 	case "dependencies":
 		root = reflect.TypeOf(ctis.Dependency{})

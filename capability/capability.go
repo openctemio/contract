@@ -83,6 +83,10 @@ const (
 	// PortFinding is an output sink, and an input only for capabilities that
 	// act on findings (verify.finding).
 	PortFinding PortType = "finding"
+	// PortEndpoint is a stream of web endpoints (a method and a path on an
+	// origin, CTIS 1.6 report.endpoints): sub-inventory of a url, not an
+	// asset.
+	PortEndpoint PortType = "endpoint"
 )
 
 // PortTypeInfo describes one port type.
@@ -90,7 +94,7 @@ type PortTypeInfo struct {
 	Type  PortType `json:"type"`
 	Label string   `json:"label"`
 	// Carries are the CTIS asset types a stream of this type holds; empty
-	// for findings.
+	// for findings and endpoints, which are not assets.
 	Carries []string `json:"carries"`
 }
 
@@ -154,7 +158,8 @@ type Capability struct {
 	InPorts   []PortType `json:"in_ports"`
 	OutPorts  []PortType `json:"out_ports"`
 	// ExtraOutputs are output kinds that ride along without being a port
-	// ("asset:certificate", "dependency"); "asset:*" allows any asset type.
+	// ("asset:certificate", "dependency", "endpoint"); "asset:*" allows any
+	// asset type.
 	ExtraOutputs []string `json:"extra_outputs,omitempty"`
 	// FindingTypes, when set, are the only CTIS finding types a report may
 	// carry; empty means any.
@@ -177,8 +182,8 @@ type Capability struct {
 // list or object. A rule picking no record is satisfied (an empty result is
 // a valid result).
 //
-// Select is "assets", "findings" or "dependencies", optionally with a type
-// filter: "assets[type=open_port]", "assets[type=ip_address|host]",
+// Select is "assets", "findings", "dependencies" or "endpoints" (CTIS
+// 1.6), the first two optionally with a type filter: "assets[type=open_port]", "assets[type=ip_address|host]",
 // "findings[type=secret]". A path is dotted JSON member names relative to
 // the record; "[]" after a member means the member is a list that must not
 // be empty and the rest of the path applies to every element
@@ -241,10 +246,11 @@ func (c Capability) Accepts(assetType string) bool {
 }
 
 // MayEmit reports whether a report of the capability may carry an output of
-// this kind: "asset:<ctis asset type>", "finding:<ctis finding type>" or
-// "dependency". A capability may emit what its output ports carry, what its
-// input ports carry (a tool re-observes its targets), its extra outputs, and
-// findings of an allowed type when it has a finding output.
+// this kind: "asset:<ctis asset type>", "finding:<ctis finding type>",
+// "dependency" or "endpoint". A capability may emit what its output ports
+// carry, what its input ports carry (a tool re-observes its targets), its
+// extra outputs, and findings of an allowed type when it has a finding
+// output.
 func (c Capability) MayEmit(kind string) bool { return c.mayEmit(tax.PortTypes, kind) }
 
 func (c Capability) mayEmit(ports []PortTypeInfo, kind string) bool {
@@ -273,6 +279,9 @@ func (c Capability) mayEmit(ports []PortTypeInfo, kind string) bool {
 		return contains(c.FindingTypes, value)
 	case "dependency":
 		return value == "" && contains(c.ExtraOutputs, "dependency")
+	case "endpoint":
+		return value == "" && (containsPort(c.OutPorts, PortEndpoint) || containsPort(c.InPorts, PortEndpoint) ||
+			contains(c.ExtraOutputs, "endpoint"))
 	}
 	return false
 }

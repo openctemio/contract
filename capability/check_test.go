@@ -184,3 +184,83 @@ func TestPresent(t *testing.T) {
 		}
 	}
 }
+
+// Endpoints (CTIS 1.6) are an output kind of their own: a capability with
+// an endpoint port, in or out, or the endpoint extra output may report them.
+func TestEndpointOutputs(t *testing.T) {
+	crawl, _ := Lookup("crawl.web@1")
+	dast, _ := Lookup("dast.web@1")
+	ports, _ := Lookup("scan.ports@1")
+	probe, _ := Lookup("probe.http@1")
+	spec, ok := Lookup("import.api_spec@1")
+	if !ok || spec.Status != StatusPlanned || spec.Phase != PhaseCollect || spec.TierFloor != 0 || len(spec.InPorts) != 0 {
+		t.Fatalf("import.api_spec %+v", spec)
+	}
+	for _, c := range []Capability{crawl, dast, probe, spec} {
+		if !c.MayEmit("endpoint") {
+			t.Errorf("%s may emit endpoints", c.Ref())
+		}
+	}
+	if ports.MayEmit("endpoint") || crawl.MayEmit("endpoint:x") {
+		t.Error("scan.ports emits no endpoints; endpoint takes no type")
+	}
+	if p, ok := probe.Param("api_schema"); !ok || p.Type != ParamBoolean {
+		t.Error("probe.http api_schema")
+	}
+	r := &ctis.Report{Endpoints: []ctis.Endpoint{{Origin: "https://a.example", Path: "/x"}, {Origin: "https://a.example"}}}
+	v, err := crawl.Check(r, CheckOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(v) != 1 || v[0].Kind != "missing_path" || v[0].Record != "/endpoints/1" || v[0].Path != "path" {
+		t.Fatalf("crawl violations %v", v)
+	}
+	v, _ = ports.Check(r, CheckOptions{})
+	if len(v) != 1 || v[0].Kind != "not_allowed" || v[0].Record != "/endpoints" {
+		t.Fatalf("scan.ports violations %v", v)
+	}
+	// A legacy crawl report (discovered_url assets only) still conforms.
+	legacy := &ctis.Report{Assets: []ctis.Asset{{Type: ctis.AssetTypeDiscoveredURL, Value: "https://a.example/x", Properties: ctis.Properties{"host": "a.example"}}}}
+	if v, _ := crawl.Check(legacy, CheckOptions{}); v != nil {
+		t.Fatalf("legacy crawl %v", v)
+	}
+	// A web finding located by finding.web conforms to dast.web and
+	// vuln.templates.
+	f := ctis.Finding{RuleID: "r", Severity: ctis.SeverityHigh, Title: "t", Type: ctis.FindingTypeVulnerability, Web: &ctis.WebLocation{URL: "https://a.example/x"}}
+	for _, id := range []string{"dast.web@1", "vuln.templates@1"} {
+		c, _ := Lookup(id)
+		if !c.Accepts("http_service") {
+			t.Errorf("%s keeps its url input", id)
+		}
+		if !containsPort(c.InPorts, PortEndpoint) {
+			t.Errorf("%s takes endpoints", id)
+		}
+		if v, _ := c.Check(&ctis.Report{Findings: []ctis.Finding{f}}, CheckOptions{}); v != nil {
+			t.Errorf("%s: %v", id, v)
+		}
+	}
+}
+
+func TestEndpointRuleValidation(t *testing.T) {
+	tax, err := load(taxonomyJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := tax.Capabilities[0]
+	c.OutPorts, c.ExtraOutputs = []PortType{PortHostname}, nil
+	for sel, want := range map[string]string{
+		"endpoints":            "emits no endpoints",
+		"endpoints[type=page]": "no type filter",
+	} {
+		if err := (Rule{Select: sel, Paths: []string{"origin"}}).validate(c, tax.PortTypes); err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("%s: %v", sel, err)
+		}
+	}
+	c.ExtraOutputs = []string{"endpoint"}
+	if err := (Rule{Select: "endpoints", Paths: []string{"origin", "params[].name"}}).validate(c, tax.PortTypes); err != nil {
+		t.Error(err)
+	}
+	if err := (Rule{Select: "endpoints", Paths: []string{"nope"}}).validate(c, tax.PortTypes); err == nil {
+		t.Error("an unknown endpoint member")
+	}
+}

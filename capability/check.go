@@ -75,6 +75,9 @@ func (c Capability) Check(r *ctis.Report, opts CheckOptions) ([]Violation, error
 	if len(r.Dependencies) > 0 && !c.MayEmit("dependency") {
 		out = append(out, Violation{Kind: "not_allowed", Record: "/dependencies", Path: "dependency"})
 	}
+	if len(r.Endpoints) > 0 && !c.MayEmit("endpoint") && !full() {
+		out = append(out, Violation{Kind: "not_allowed", Record: "/endpoints", Path: "endpoint"})
+	}
 
 	// Rules are evaluated on the JSON form, the form a receiver sees.
 	raw, err := json.Marshal(r)

@@ -17,7 +17,8 @@
     {"type": "repository", "label": "Repository", "carries": ["repository"]},
     {"type": "container_image", "label": "Container image", "carries": ["container"]},
     {"type": "cloud_account", "label": "Cloud account", "carries": ["cloud_account"]},
-    {"type": "finding", "label": "Finding", "carries": []}
+    {"type": "finding", "label": "Finding", "carries": []},
+    {"type": "endpoint", "label": "Web endpoint (method and path)", "carries": []}
   ],
   "capabilities": [
     {
@@ -93,12 +94,13 @@
       "name": "HTTP probe", "description": "Probe web services: status, title, technologies, TLS certificate.",
       "phase": "discover.active", "tier_floor": 1,
       "in_ports": ["hostname", "ip", "service", "url"], "out_ports": ["url", "ip"],
-      "extra_outputs": ["asset:certificate"],
+      "extra_outputs": ["asset:certificate", "endpoint"],
       "params": [
         {"name": "ports", "type": "port_list", "description": "Ports to probe when the input is a hostname or an address."},
         {"name": "follow_redirects", "type": "boolean", "description": "Follow redirects on the same host."},
         {"name": "tech_detect", "type": "boolean", "description": "Detect the technologies a page uses."},
-        {"name": "tls_grab", "type": "boolean", "description": "Record the TLS certificate."}
+        {"name": "tls_grab", "type": "boolean", "description": "Record the TLS certificate."},
+        {"name": "api_schema", "type": "boolean", "description": "Fetch API schema documents (OpenAPI, GraphQL introspection) at well-known paths and report their operations as endpoints."}
       ],
       "outputs": [
         {"select": "assets[type=http_service]", "paths": ["value", "properties.status_code"]}
@@ -141,16 +143,17 @@
     },
     {
       "id": "crawl.web", "major": 1, "status": "routed",
-      "name": "Web crawl", "description": "Crawl web services for URLs, staying on the same host.",
+      "name": "Web crawl", "description": "Crawl web services for URLs, staying on the same host. Reports endpoints (CTIS 1.6), or discovered_url assets from producers before 1.6.",
       "phase": "discover.active", "tier_floor": 1,
-      "in_ports": ["url"], "out_ports": ["url"],
+      "in_ports": ["url"], "out_ports": ["url", "endpoint"],
       "params": [
         {"name": "depth", "type": "integer", "description": "Maximum crawl depth.", "min": 1, "max": 10},
         {"name": "js_parse", "type": "boolean", "description": "Parse JavaScript for endpoints."},
         {"name": "max_urls", "type": "integer", "description": "Stop after this many URLs per start URL.", "min": 1, "max": 5000}
       ],
       "outputs": [
-        {"select": "assets[type=discovered_url]", "paths": ["value", "properties.host"]}
+        {"select": "assets[type=discovered_url]", "paths": ["value", "properties.host"]},
+        {"select": "endpoints", "paths": ["origin", "path"]}
       ],
       "attack": ["T1594", "T1595.003"], "d3fend": ["D3-AI"]
     },
@@ -183,7 +186,7 @@
       "id": "vuln.templates", "major": 1, "status": "routed",
       "name": "Vulnerability templates", "description": "Run non-intrusive vulnerability templates.",
       "phase": "assess", "tier_floor": 1,
-      "in_ports": ["url", "service", "hostname", "ip"], "out_ports": ["finding"],
+      "in_ports": ["url", "service", "hostname", "ip", "endpoint"], "out_ports": ["finding"],
       "params": [
         {"name": "severity", "type": "string_list", "description": "Only templates of these severities.", "enum": ["info", "low", "medium", "high", "critical", "unknown"]},
         {"name": "tags", "type": "string_list", "description": "Only templates with these tags."},
@@ -191,21 +194,21 @@
         {"name": "rate", "type": "integer", "description": "Maximum requests per second.", "min": 1, "max": 100000}
       ],
       "outputs": [
-        {"select": "findings", "paths": ["rule_id", "severity", "title"], "any_of": ["network.host", "asset_ref", "asset_value", "location.path"]}
+        {"select": "findings", "paths": ["rule_id", "severity", "title"], "any_of": ["network.host", "asset_ref", "asset_value", "location.path", "web.url"]}
       ],
       "attack": ["T1595.002", "T1190"], "d3fend": ["D3-AVE", "D3-NVA"]
     },
     {
       "id": "dast.web", "major": 1, "status": "routed",
-      "name": "Web application scan", "description": "Dynamic application security testing of a web application.",
+      "name": "Web application scan", "description": "Dynamic application security testing of a web application, or of the known endpoints of one.",
       "phase": "assess", "tier_floor": 2,
-      "in_ports": ["url"], "out_ports": ["finding"],
+      "in_ports": ["url", "endpoint"], "out_ports": ["finding"],
       "params": [
         {"name": "profile", "type": "string", "description": "Scan depth.", "enum": ["crawl_only", "high_risk", "full"]},
         {"name": "max_duration_minutes", "type": "integer", "description": "Stop the scan after this many minutes.", "min": 1, "max": 1440}
       ],
       "outputs": [
-        {"select": "findings", "paths": ["rule_id", "severity", "title"], "any_of": ["network.host", "asset_ref", "asset_value"]}
+        {"select": "findings", "paths": ["rule_id", "severity", "title"], "any_of": ["network.host", "asset_ref", "asset_value", "web.url"]}
       ],
       "attack": ["T1595.002", "T1190"], "d3fend": ["D3-AVE"]
     },
@@ -344,7 +347,7 @@
     },
     {
       "id": "verify.finding", "major": 1, "status": "planned", "cross_cutting": true,
-      "name": "Verify a finding", "description": "Retest a finding with a tool that can reproduce it. Used by retests, not as a workflow node.",
+      "name": "Verify a finding", "description": "Retest a finding with a tool that can reproduce it. A web finding is retested at its finding.web location (URL, method, parameter). Used by retests, not as a workflow node.",
       "phase": "validate", "tier_floor": 0,
       "in_ports": ["finding"], "out_ports": ["finding"],
       "params": [
@@ -395,6 +398,16 @@
         {"name": "format", "type": "string", "description": "The file format; empty means detect it."}
       ],
       "outputs": []
+    },
+    {
+      "id": "import.api_spec", "major": 1, "status": "planned", "cross_cutting": true,
+      "name": "Import an API specification", "description": "Read an API specification (OpenAPI, GraphQL schema, Postman collection) into the endpoints of an origin. Makes no connection to the target.",
+      "phase": "collect", "tier_floor": 0,
+      "in_ports": [], "out_ports": ["endpoint"],
+      "params": [],
+      "outputs": [
+        {"select": "endpoints", "paths": ["origin", "path", "method"]}
+      ]
     }
   ]
 }
