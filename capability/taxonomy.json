@@ -1,0 +1,400 @@
+{
+  "version": 1,
+  "phases": [
+    {"id": "discover.passive", "label": "Passive discovery", "ctem_stage": "discovery", "description": "No packet to the target: third-party data and DNS."},
+    {"id": "discover.active", "label": "Active discovery", "ctem_stage": "discovery", "description": "Enumerates the live surface: ports, HTTP services, crawling."},
+    {"id": "assess", "label": "Assessment", "ctem_stage": "discovery", "description": "Finds weaknesses on known surface: templates, DAST, SAST, SCA, IaC, posture."},
+    {"id": "validate", "label": "Validation", "ctem_stage": "validation", "description": "Proves exploitability or reachability, or retests a finding."},
+    {"id": "collect", "label": "Collection", "ctem_stage": "discovery", "description": "Pulls assets and findings from another product or a file."}
+  ],
+  "port_types": [
+    {"type": "root_domain", "label": "Root domain", "carries": ["domain"]},
+    {"type": "hostname", "label": "Hostname", "carries": ["domain", "subdomain"]},
+    {"type": "ip", "label": "IP address", "carries": ["ip_address", "host"]},
+    {"type": "cidr", "label": "Network range", "carries": ["network", "subnet"]},
+    {"type": "service", "label": "Service (host:port)", "carries": ["open_port", "service"]},
+    {"type": "url", "label": "URL", "carries": ["http_service", "discovered_url", "website", "api", "web_application"]},
+    {"type": "repository", "label": "Repository", "carries": ["repository"]},
+    {"type": "container_image", "label": "Container image", "carries": ["container"]},
+    {"type": "cloud_account", "label": "Cloud account", "carries": ["cloud_account"]},
+    {"type": "finding", "label": "Finding", "carries": []}
+  ],
+  "capabilities": [
+    {
+      "id": "discover.subdomains", "major": 1, "status": "routed",
+      "name": "Subdomain discovery", "description": "Find subdomains of a root domain from passive sources.",
+      "phase": "discover.passive", "tier_floor": 0,
+      "in_ports": ["root_domain"], "out_ports": ["hostname"],
+      "params": [
+        {"name": "sources", "type": "string_list", "description": "Passive sources to query; empty means the tool's defaults."},
+        {"name": "recursive", "type": "boolean", "description": "Also enumerate subdomains of found subdomains."},
+        {"name": "max_results", "type": "integer", "description": "Stop after this many names per root domain.", "min": 1, "max": 5000}
+      ],
+      "outputs": [
+        {"select": "assets[type=domain|subdomain]", "paths": ["value", "properties.root_domain"]}
+      ],
+      "attack": ["T1596.001", "T1590.002", "T1593.002"], "d3fend": ["D3-AI"], "capec": ["CAPEC-169"]
+    },
+    {
+      "id": "intel.passive", "major": 1, "status": "planned",
+      "name": "Passive intelligence", "description": "Names, ranges and addresses from certificate transparency, RDAP and ASN data.",
+      "phase": "discover.passive", "tier_floor": 0,
+      "in_ports": ["root_domain", "ip", "cidr"], "out_ports": ["hostname", "cidr", "ip"],
+      "params": [],
+      "outputs": [
+        {"select": "assets", "paths": ["value", "properties.source"]}
+      ],
+      "attack": ["T1596.002", "T1596.003", "T1596.005"], "d3fend": ["D3-AI", "D3-NM"], "capec": ["CAPEC-169"]
+    },
+    {
+      "id": "resolve.dns", "major": 1, "status": "routed",
+      "name": "DNS resolution", "description": "Resolve names to addresses and aliases.",
+      "phase": "discover.passive", "tier_floor": 0,
+      "in_ports": ["hostname"], "out_ports": ["hostname", "ip"],
+      "params": [
+        {"name": "record_types", "type": "string_list", "description": "DNS record types to query.", "enum": ["a", "aaaa", "cname", "mx", "ns", "txt"]},
+        {"name": "wildcard_filter", "type": "boolean", "description": "Drop names that only resolve through a wildcard record."}
+      ],
+      "outputs": [
+        {"select": "assets[type=domain|subdomain]", "paths": ["value", "technical.domain.dns_records[].type", "technical.domain.dns_records[].value"]}
+      ],
+      "attack": ["T1590.002"], "d3fend": ["D3-NM"], "capec": ["CAPEC-309"]
+    },
+    {
+      "id": "scan.ports", "major": 1, "status": "routed",
+      "name": "Port scan", "description": "Find open TCP ports (connect scan).",
+      "phase": "discover.active", "tier_floor": 1,
+      "in_ports": ["hostname", "ip"], "out_ports": ["service", "ip"],
+      "params": [
+        {"name": "ports", "type": "port_list", "description": "Ports and port ranges to scan."},
+        {"name": "top_n", "type": "integer", "description": "Scan the N most common ports instead of a list.", "min": 1, "max": 65535},
+        {"name": "protocol", "type": "string", "description": "Transport protocol.", "enum": ["tcp"]},
+        {"name": "rate", "type": "integer", "description": "Maximum requests per second.", "min": 1, "max": 100000}
+      ],
+      "outputs": [
+        {"shape": "open_port_assets", "select": "assets[type=open_port]", "paths": ["value", "properties.host", "properties.port", "properties.protocol"]},
+        {"shape": "ip_ports", "select": "assets[type=ip_address|host]", "paths": ["value", "technical.ip_address.ports[].port"]}
+      ],
+      "attack": ["T1595.001", "T1046"], "d3fend": ["D3-NM"], "capec": ["CAPEC-300"]
+    },
+    {
+      "id": "detect.services", "major": 1, "status": "planned",
+      "name": "Service detection", "description": "Identify the service, product and version behind an open port.",
+      "phase": "discover.active", "tier_floor": 1,
+      "in_ports": ["service"], "out_ports": ["service"],
+      "params": [],
+      "outputs": [
+        {"select": "assets[type=open_port|service]", "paths": ["value"], "any_of": ["technical.service.name", "properties.service"]}
+      ],
+      "attack": ["T1595.001", "T1592.002"], "d3fend": ["D3-SWI"], "capec": ["CAPEC-541"]
+    },
+    {
+      "id": "probe.http", "major": 1, "status": "routed",
+      "name": "HTTP probe", "description": "Probe web services: status, title, technologies, TLS certificate.",
+      "phase": "discover.active", "tier_floor": 1,
+      "in_ports": ["hostname", "ip", "service", "url"], "out_ports": ["url", "ip"],
+      "extra_outputs": ["asset:certificate"],
+      "params": [
+        {"name": "ports", "type": "port_list", "description": "Ports to probe when the input is a hostname or an address."},
+        {"name": "follow_redirects", "type": "boolean", "description": "Follow redirects on the same host."},
+        {"name": "tech_detect", "type": "boolean", "description": "Detect the technologies a page uses."},
+        {"name": "tls_grab", "type": "boolean", "description": "Record the TLS certificate."}
+      ],
+      "outputs": [
+        {"select": "assets[type=http_service]", "paths": ["value", "properties.status_code"]}
+      ],
+      "attack": ["T1595", "T1594"], "d3fend": ["D3-AI"], "capec": ["CAPEC-541"]
+    },
+    {
+      "id": "fingerprint.tech", "major": 1, "status": "planned",
+      "name": "Technology fingerprint", "description": "Identify the technologies a web service or service runs.",
+      "phase": "discover.active", "tier_floor": 1,
+      "in_ports": ["url", "service"], "out_ports": ["url", "service"],
+      "params": [],
+      "outputs": [
+        {"select": "assets[type=http_service|open_port|service]", "paths": ["value", "properties.technologies"]}
+      ],
+      "attack": ["T1592.002"], "d3fend": ["D3-SWI"], "capec": ["CAPEC-541"]
+    },
+    {
+      "id": "check.tls", "major": 1, "status": "planned",
+      "name": "TLS check", "description": "Check certificates, protocols and ciphers.",
+      "phase": "assess", "tier_floor": 1,
+      "in_ports": ["service", "url"], "out_ports": ["finding"],
+      "extra_outputs": ["asset:certificate"],
+      "params": [],
+      "outputs": [
+        {"select": "assets[type=certificate]", "paths": ["value", "technical.certificate.fingerprint", "technical.certificate.not_after"]}
+      ],
+      "attack": ["T1596.003"], "d3fend": ["D3-CI"]
+    },
+    {
+      "id": "capture.screenshot", "major": 1, "status": "planned",
+      "name": "Screenshot", "description": "Capture a screenshot of a web page.",
+      "phase": "discover.active", "tier_floor": 1,
+      "in_ports": ["url"], "out_ports": ["url"],
+      "params": [],
+      "outputs": [
+        {"select": "assets[type=http_service|website|web_application]", "paths": ["value", "properties.screenshot"]}
+      ],
+      "attack": ["T1594"]
+    },
+    {
+      "id": "crawl.web", "major": 1, "status": "routed",
+      "name": "Web crawl", "description": "Crawl web services for URLs, staying on the same host.",
+      "phase": "discover.active", "tier_floor": 1,
+      "in_ports": ["url"], "out_ports": ["url"],
+      "params": [
+        {"name": "depth", "type": "integer", "description": "Maximum crawl depth.", "min": 1, "max": 10},
+        {"name": "js_parse", "type": "boolean", "description": "Parse JavaScript for endpoints."},
+        {"name": "max_urls", "type": "integer", "description": "Stop after this many URLs per start URL.", "min": 1, "max": 5000}
+      ],
+      "outputs": [
+        {"select": "assets[type=discovered_url]", "paths": ["value", "properties.host"]}
+      ],
+      "attack": ["T1594", "T1595.003"], "d3fend": ["D3-AI"]
+    },
+    {
+      "id": "discover.cloud", "major": 1, "status": "planned",
+      "name": "Cloud resource discovery", "description": "List the resources of a cloud account through its read-only API.",
+      "phase": "discover.passive", "tier_floor": 0,
+      "in_ports": ["cloud_account"], "out_ports": ["cloud_account"],
+      "extra_outputs": ["asset:compute", "asset:storage", "asset:database", "asset:serverless", "asset:container_registry", "asset:kubernetes_cluster", "asset:load_balancer", "asset:vpc", "asset:subnet", "asset:firewall", "asset:iam_user", "asset:iam_role", "asset:service_account"],
+      "params": [
+        {"name": "regions", "type": "string_list", "description": "Only these regions; empty means every region the account uses."}
+      ],
+      "outputs": [
+        {"select": "assets[type=compute|storage|database|serverless|container_registry|kubernetes_cluster|load_balancer|vpc|subnet|firewall]", "paths": ["value", "technical.cloud.provider", "technical.cloud.resource_id"]}
+      ],
+      "attack": ["T1580", "T1526"], "d3fend": ["D3-AI"]
+    },
+    {
+      "id": "discover.repositories", "major": 1, "status": "later",
+      "name": "Repository discovery", "description": "List the repositories of a source-code organisation.",
+      "phase": "discover.passive", "tier_floor": 0,
+      "in_ports": [], "out_ports": ["repository"],
+      "params": [],
+      "outputs": [
+        {"select": "assets[type=repository]", "paths": ["value", "technical.repository.default_branch"]}
+      ],
+      "attack": ["T1593.003"], "d3fend": ["D3-AI"]
+    },
+    {
+      "id": "vuln.templates", "major": 1, "status": "routed",
+      "name": "Vulnerability templates", "description": "Run non-intrusive vulnerability templates.",
+      "phase": "assess", "tier_floor": 1,
+      "in_ports": ["url", "service", "hostname", "ip"], "out_ports": ["finding"],
+      "params": [
+        {"name": "severity", "type": "string_list", "description": "Only templates of these severities.", "enum": ["info", "low", "medium", "high", "critical", "unknown"]},
+        {"name": "tags", "type": "string_list", "description": "Only templates with these tags."},
+        {"name": "exclude_tags", "type": "string_list", "description": "Skip templates with these tags."},
+        {"name": "rate", "type": "integer", "description": "Maximum requests per second.", "min": 1, "max": 100000}
+      ],
+      "outputs": [
+        {"select": "findings", "paths": ["rule_id", "severity", "title"], "any_of": ["network.host", "asset_ref", "asset_value", "location.path"]}
+      ],
+      "attack": ["T1595.002", "T1190"], "d3fend": ["D3-AVE", "D3-NVA"]
+    },
+    {
+      "id": "dast.web", "major": 1, "status": "routed",
+      "name": "Web application scan", "description": "Dynamic application security testing of a web application.",
+      "phase": "assess", "tier_floor": 2,
+      "in_ports": ["url"], "out_ports": ["finding"],
+      "params": [
+        {"name": "profile", "type": "string", "description": "Scan depth.", "enum": ["crawl_only", "high_risk", "full"]},
+        {"name": "max_duration_minutes", "type": "integer", "description": "Stop the scan after this many minutes.", "min": 1, "max": 1440}
+      ],
+      "outputs": [
+        {"select": "findings", "paths": ["rule_id", "severity", "title"], "any_of": ["network.host", "asset_ref", "asset_value"]}
+      ],
+      "attack": ["T1595.002", "T1190"], "d3fend": ["D3-AVE"]
+    },
+    {
+      "id": "sast.code", "major": 1, "status": "routed",
+      "name": "Static analysis", "description": "Static application security testing of source code.",
+      "phase": "assess", "tier_floor": 0,
+      "in_ports": ["repository"], "out_ports": ["finding"],
+      "params": [
+        {"name": "languages", "type": "string_list", "description": "Only analyze these languages."}
+      ],
+      "outputs": [
+        {"select": "findings", "paths": ["rule_id", "severity", "title", "location.path"]}
+      ],
+      "attack": ["T1190"], "d3fend": ["D3-AVE"]
+    },
+    {
+      "id": "secrets.code", "major": 1, "status": "routed",
+      "name": "Secrets in code", "description": "Find committed secrets in a repository.",
+      "phase": "assess", "tier_floor": 0,
+      "in_ports": ["repository"], "out_ports": ["finding"],
+      "finding_types": ["secret"],
+      "params": [
+        {"name": "history", "type": "boolean", "description": "Scan the commit history, not only the current tree."}
+      ],
+      "outputs": [
+        {"select": "findings", "paths": ["rule_id", "title", "location.path", "secret.masked_value"]}
+      ],
+      "attack": ["T1552.001"], "d3fend": ["D3-CI"]
+    },
+    {
+      "id": "sca.deps", "major": 1, "status": "routed",
+      "name": "Dependency scan", "description": "Find vulnerable dependencies and build a component inventory.",
+      "phase": "assess", "tier_floor": 0,
+      "in_ports": ["repository", "container_image"], "out_ports": ["finding"],
+      "extra_outputs": ["dependency"],
+      "finding_types": ["vulnerability"],
+      "params": [
+        {"name": "dev_deps", "type": "boolean", "description": "Include development dependencies."}
+      ],
+      "outputs": [
+        {"select": "dependencies", "paths": ["name", "version"]},
+        {"select": "findings", "paths": ["severity", "title"], "any_of": ["vulnerability.cve_id", "vulnerability.ids", "rule_id"]}
+      ],
+      "attack": ["T1195.001"], "d3fend": ["D3-SWI", "D3-AVE"]
+    },
+    {
+      "id": "sbom.generate", "major": 1, "status": "planned",
+      "name": "Software bill of materials", "description": "Build the component inventory of a repository or an image, without vulnerability matching.",
+      "phase": "assess", "tier_floor": 0,
+      "in_ports": ["repository", "container_image"], "out_ports": [],
+      "extra_outputs": ["dependency"],
+      "params": [
+        {"name": "dev_deps", "type": "boolean", "description": "Include development dependencies."}
+      ],
+      "outputs": [
+        {"select": "dependencies", "paths": ["name", "version"]}
+      ],
+      "attack": ["T1195.001"], "d3fend": ["D3-SWI"]
+    },
+    {
+      "id": "iac.misconfig", "major": 1, "status": "routed",
+      "name": "Infrastructure-as-code misconfiguration", "description": "Find misconfigurations in infrastructure-as-code files.",
+      "phase": "assess", "tier_floor": 0,
+      "in_ports": ["repository"], "out_ports": ["finding"],
+      "finding_types": ["misconfiguration"],
+      "params": [
+        {"name": "frameworks", "type": "string_list", "description": "Only these IaC frameworks."}
+      ],
+      "outputs": [
+        {"select": "findings", "paths": ["rule_id", "severity", "title", "location.path"]}
+      ],
+      "d3fend": ["D3-CI"]
+    },
+    {
+      "id": "container.image", "major": 1, "status": "routed",
+      "name": "Container image scan", "description": "Find vulnerabilities in a container image.",
+      "phase": "assess", "tier_floor": 0,
+      "in_ports": ["container_image"], "out_ports": ["finding"],
+      "extra_outputs": ["dependency"],
+      "params": [
+        {"name": "os_pkgs", "type": "boolean", "description": "Include operating-system packages."}
+      ],
+      "outputs": [
+        {"select": "findings", "paths": ["severity", "title"], "any_of": ["vulnerability.cve_id", "vulnerability.ids", "rule_id"]}
+      ],
+      "attack": ["T1195.002"], "d3fend": ["D3-AVE"]
+    },
+    {
+      "id": "cloud.posture", "major": 1, "status": "planned",
+      "name": "Cloud posture", "description": "Read-only configuration review of a cloud account.",
+      "phase": "assess", "tier_floor": 0,
+      "in_ports": ["cloud_account"], "out_ports": ["finding"],
+      "finding_types": ["misconfiguration", "compliance"],
+      "params": [],
+      "outputs": [
+        {"select": "findings", "paths": ["rule_id", "severity", "title"]}
+      ],
+      "attack": ["T1580"], "d3fend": ["D3-CI"]
+    },
+    {
+      "id": "config.benchmark", "major": 1, "status": "later",
+      "name": "Configuration benchmark", "description": "Check a host or an account against a configuration benchmark.",
+      "phase": "assess", "tier_floor": 1,
+      "in_ports": ["ip", "hostname", "cloud_account"], "out_ports": ["finding"],
+      "finding_types": ["compliance", "misconfiguration"],
+      "params": [],
+      "outputs": [
+        {"select": "findings", "paths": ["rule_id", "severity", "title", "compliance.framework", "compliance.control_id"]}
+      ],
+      "d3fend": ["D3-CI"]
+    },
+    {
+      "id": "host.credentialed", "major": 1, "status": "planned",
+      "name": "Credentialed host scan", "description": "Authenticated vulnerability scan of a host.",
+      "phase": "assess", "tier_floor": 1,
+      "in_ports": ["ip", "hostname"], "out_ports": ["finding"],
+      "params": [],
+      "outputs": [
+        {"select": "findings", "paths": ["severity", "title"], "any_of": ["rule_id", "vulnerability.cve_id"]}
+      ],
+      "attack": ["T1078"], "d3fend": ["D3-AVE"]
+    },
+    {
+      "id": "network_va.connector", "major": 1, "status": "routed",
+      "name": "Network vulnerability assessment (connector)", "description": "Run a network vulnerability scan through a connected scanner product.",
+      "phase": "collect", "tier_floor": 1,
+      "in_ports": ["ip", "cidr"], "out_ports": ["finding"],
+      "params": [
+        {"name": "policy", "type": "string", "description": "Scan policy name in the connected product."}
+      ],
+      "outputs": [
+        {"select": "findings", "paths": ["rule_id", "severity", "title"], "any_of": ["network.host", "asset_ref", "asset_value"]}
+      ],
+      "attack": ["T1595.002"], "d3fend": ["D3-NVA"]
+    },
+    {
+      "id": "verify.finding", "major": 1, "status": "planned", "cross_cutting": true,
+      "name": "Verify a finding", "description": "Retest a finding with a tool that can reproduce it. Used by retests, not as a workflow node.",
+      "phase": "validate", "tier_floor": 0,
+      "in_ports": ["finding"], "out_ports": ["finding"],
+      "params": [
+        {"name": "mode", "type": "string", "description": "retest re-runs the rule that found it; exploit_check runs a safe proof without side effects.", "enum": ["retest", "exploit_check"]}
+      ],
+      "outputs": [],
+      "attack": [], "d3fend": ["D3-AVE"]
+    },
+    {
+      "id": "check.takeover", "major": 1, "status": "planned",
+      "name": "Subdomain takeover check", "description": "Find names whose alias points at an unclaimed third-party resource.",
+      "phase": "validate", "tier_floor": 1,
+      "in_ports": ["hostname"], "out_ports": ["finding"],
+      "params": [],
+      "outputs": [
+        {"select": "findings", "paths": ["rule_id", "severity", "title", "evidence"], "any_of": ["network.host", "asset_value", "asset_ref"]}
+      ],
+      "attack": ["T1584.001"], "d3fend": ["D3-CI"]
+    },
+    {
+      "id": "check.credentials", "major": 1, "status": "later",
+      "name": "Credential exposure check", "description": "Look up exposed credentials of the organisation in breach corpora; never a login attempt.",
+      "phase": "validate", "tier_floor": 0,
+      "in_ports": [], "out_ports": ["finding"],
+      "params": [],
+      "outputs": [
+        {"select": "findings", "paths": ["rule_id", "severity", "title"]}
+      ],
+      "attack": ["T1589.001", "T1078"]
+    },
+    {
+      "id": "simulate.attack", "major": 1, "status": "later",
+      "name": "Attack simulation", "description": "Run attack scenarios on a host and report whether controls prevented or detected them.",
+      "phase": "validate", "tier_floor": 2,
+      "in_ports": ["ip", "hostname"], "out_ports": ["finding"],
+      "params": [],
+      "outputs": [
+        {"select": "findings", "paths": ["rule_id", "severity", "title"]}
+      ]
+    },
+    {
+      "id": "import.file", "major": 1, "status": "routed", "cross_cutting": true,
+      "name": "Import a file", "description": "Read a report file of a known format (SARIF, CycloneDX, SPDX, Nessus, ...) into assets, findings and dependencies. Makes no network connection.",
+      "phase": "collect", "tier_floor": 0,
+      "in_ports": [], "out_ports": ["finding"],
+      "extra_outputs": ["asset:*", "dependency"],
+      "params": [
+        {"name": "format", "type": "string", "description": "The file format; empty means detect it."}
+      ],
+      "outputs": []
+    }
+  ]
+}
