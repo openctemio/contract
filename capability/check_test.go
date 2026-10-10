@@ -264,3 +264,36 @@ func TestEndpointRuleValidation(t *testing.T) {
 		t.Error("an unknown endpoint member")
 	}
 }
+
+func TestCheckLookupOutputs(t *testing.T) {
+	// lookup.rdap re-observes the root domain with its registration data;
+	// a subdomain or an address is not an output of it.
+	rdap := mustLookup(t, "lookup.rdap@1")
+	dom := ctis.Asset{Type: ctis.AssetTypeDomain, Value: "example.com", Technical: &ctis.AssetTechnical{Domain: &ctis.DomainTechnical{
+		Registrar: "Example Registrar", Nameservers: []string{"a.iana-servers.net"}, WHOIS: map[string]string{"rdap_server": "https://rdap.example/"}}}}
+	if v, err := rdap.Check(&ctis.Report{Assets: []ctis.Asset{dom}}, CheckOptions{}); err != nil || len(v) != 0 {
+		t.Fatalf("rdap: %v %v", v, err)
+	}
+	bad := &ctis.Report{Assets: []ctis.Asset{{Type: ctis.AssetTypeDomain, Value: "example.com"}, {Type: ctis.AssetTypeIPAddress, Value: "192.0.2.1"}}}
+	v, _ := rdap.Check(bad, CheckOptions{})
+	if len(v) != 2 || v[0].Kind != "not_allowed" || v[1].Path != "technical.domain.whois" {
+		t.Fatalf("rdap bad = %v", v)
+	}
+	// lookup.asn annotates the address and may report announced ranges as
+	// networks, each with its origin system.
+	asn := mustLookup(t, "lookup.asn@1")
+	r := &ctis.Report{Assets: []ctis.Asset{
+		{Type: ctis.AssetTypeIPAddress, Value: "192.0.2.1", Technical: &ctis.AssetTechnical{IPAddress: &ctis.IPAddressTechnical{ASN: 64496, ASNOrg: "EXAMPLE-AS"}}},
+		{Type: ctis.AssetTypeNetwork, Value: "192.0.2.0/24", Properties: ctis.Properties{"asn": 64496}},
+	}}
+	if v, err := asn.Check(r, CheckOptions{}); err != nil || len(v) != 0 {
+		t.Fatalf("asn: %v %v", v, err)
+	}
+	r.Assets[1].Properties = nil
+	if v, _ := asn.Check(r, CheckOptions{}); len(v) != 1 || v[0].Path != "properties.asn" {
+		t.Fatalf("asn without properties.asn = %v", v)
+	}
+	if c, _ := Lookup("lookup.asn@1"); c.TierFloor != 0 || c.Phase != "discover.passive" || !c.Runnable() {
+		t.Fatalf("asn = %+v", c)
+	}
+}
