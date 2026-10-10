@@ -22,14 +22,15 @@ var platformIDs = []string{
 	"iac.misconfig", "container.image", "network_va.connector",
 	"intel.passive", "check.takeover", "detect.services", "fingerprint.tech",
 	"check.tls", "capture.screenshot", "host.credentialed", "cloud.posture", "verify.finding",
+	"lookup.rdap", "lookup.asn",
 }
 
 func TestEmbeddedTaxonomyLoads(t *testing.T) {
 	if _, err := load(taxonomyJSON); err != nil {
 		t.Fatal(err)
 	}
-	if got := len(All()); got != 30 {
-		t.Fatalf("capabilities = %d, want 30 (26 v1 + 4 later)", got)
+	if got := len(All()); got != 32 {
+		t.Fatalf("capabilities = %d, want 32 (28 v1 + 4 later)", got)
 	}
 }
 
@@ -81,7 +82,7 @@ func TestTierFloors(t *testing.T) {
 		"discover.subdomains": 0, "resolve.dns": 0, "scan.ports": 1, "probe.http": 1,
 		"crawl.web": 1, "vuln.templates": 1, "dast.web": 2, "secrets.code": 0,
 		"sast.code": 0, "sca.deps": 0, "iac.misconfig": 0, "container.image": 0,
-		"network_va.connector": 1, "simulate.attack": 2,
+		"network_va.connector": 1, "simulate.attack": 2, "lookup.rdap": 0, "lookup.asn": 0,
 	}
 	for id, tier := range want {
 		c, _ := Lookup(id)

@@ -38,7 +38,7 @@
     },
     {
       "id": "intel.passive", "major": 1, "status": "planned",
-      "name": "Passive intelligence", "description": "Names, ranges and addresses from certificate transparency, RDAP and ASN data.",
+      "name": "Passive intelligence", "description": "Names, ranges and addresses from certificate transparency and passive DNS data.",
       "phase": "discover.passive", "tier_floor": 0,
       "in_ports": ["root_domain", "ip", "cidr"], "out_ports": ["hostname", "cidr", "ip"],
       "params": [],
@@ -60,6 +60,34 @@
         {"select": "assets[type=domain|subdomain]", "paths": ["value", "technical.domain.dns_records[].type", "technical.domain.dns_records[].value"]}
       ],
       "attack": ["T1590.002"], "d3fend": ["D3-NM"], "capec": ["CAPEC-309"]
+    },
+    {
+      "id": "lookup.rdap", "major": 1, "status": "routed",
+      "name": "Domain registration lookup", "description": "Registrar, registrant organization, name servers and registration dates of a root domain, from the RDAP service of its registry.",
+      "phase": "discover.passive", "tier_floor": 0,
+      "in_ports": ["root_domain"], "out_ports": ["root_domain"],
+      "params": [
+        {"name": "follow_registrar", "type": "boolean", "description": "Also ask the registrar RDAP service the registry answer links to (registrant details a thin registry does not hold)."}
+      ],
+      "outputs": [
+        {"select": "assets[type=domain]", "paths": ["value", "technical.domain.whois"]}
+      ],
+      "attack": ["T1596.002", "T1590.001"], "d3fend": ["D3-AI"], "capec": ["CAPEC-169"]
+    },
+    {
+      "id": "lookup.asn", "major": 1, "status": "routed",
+      "name": "Network ownership lookup", "description": "Origin autonomous system, its holder and the announced range of an address or network, from public routing data; optionally the other ranges the same system announces.",
+      "phase": "discover.passive", "tier_floor": 0,
+      "in_ports": ["ip", "cidr"], "out_ports": ["ip", "cidr"],
+      "params": [
+        {"name": "include_announced", "type": "boolean", "description": "Also report the other ranges the origin system announces, as discovered networks."},
+        {"name": "max_ranges", "type": "integer", "description": "Report at most this many announced ranges per autonomous system.", "min": 1, "max": 5000}
+      ],
+      "outputs": [
+        {"select": "assets[type=ip_address]", "paths": ["value", "technical.ip_address.asn"]},
+        {"select": "assets[type=network]", "paths": ["value", "properties.asn"]}
+      ],
+      "attack": ["T1590.005", "T1596.002"], "d3fend": ["D3-AI", "D3-NM"], "capec": ["CAPEC-169"]
     },
     {
       "id": "scan.ports", "major": 1, "status": "routed",
