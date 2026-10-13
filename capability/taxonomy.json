@@ -90,6 +90,20 @@
       "attack": ["T1590.005", "T1596.002"], "d3fend": ["D3-AI", "D3-NM"], "capec": ["CAPEC-169"]
     },
     {
+      "id": "discover.hosts", "major": 1, "status": "routed",
+      "name": "Host discovery", "description": "Find the live addresses of a range or an address list with light probes (ICMP echo or a TCP connection to a few common ports), before deeper scans.",
+      "phase": "discover.active", "tier_floor": 1,
+      "in_ports": ["ip", "cidr"], "out_ports": ["ip"],
+      "params": [
+        {"name": "ports", "type": "port_list", "description": "TCP ports a host is probed on; a host that answers on any of them is live."},
+        {"name": "rate", "type": "integer", "description": "Maximum probes per second.", "min": 1, "max": 100000}
+      ],
+      "outputs": [
+        {"select": "assets[type=ip_address]", "paths": ["value", "properties.live_by"]}
+      ],
+      "attack": ["T1595.001", "T1018"], "d3fend": ["D3-NM"], "capec": ["CAPEC-292"]
+    },
+    {
       "id": "scan.ports", "major": 1, "status": "routed",
       "name": "Port scan", "description": "Find open TCP ports (connect scan).",
       "phase": "discover.active", "tier_floor": 1,

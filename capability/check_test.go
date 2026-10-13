@@ -1,6 +1,7 @@
 package capability
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -295,5 +296,27 @@ func TestCheckLookupOutputs(t *testing.T) {
 	}
 	if c, _ := Lookup("lookup.asn@1"); c.TierFloor != 0 || c.Phase != "discover.passive" || !c.Runnable() {
 		t.Fatalf("asn = %+v", c)
+	}
+}
+
+func TestCheckDiscoverHostsOutputs(t *testing.T) {
+	// discover.hosts reports each live address with the probe that answered;
+	// an address without it, or a name, is not an output of it.
+	c := mustLookup(t, "discover.hosts@1")
+	live := ctis.Asset{Type: ctis.AssetTypeIPAddress, Value: "192.0.2.7", Properties: ctis.Properties{"live_by": "tcp:443"}}
+	if v, err := c.Check(&ctis.Report{Assets: []ctis.Asset{live}}, CheckOptions{}); err != nil || len(v) != 0 {
+		t.Fatalf("live address: %v %v", v, err)
+	}
+	bad := &ctis.Report{Assets: []ctis.Asset{
+		{Type: ctis.AssetTypeIPAddress, Value: "192.0.2.8"},
+		{Type: ctis.AssetTypeSubdomain, Value: "www.example.com"},
+	}}
+	v, _ := c.Check(bad, CheckOptions{})
+	if len(v) != 2 || v[0].Kind != "not_allowed" || v[1].Path != "properties.live_by" {
+		t.Fatalf("discover.hosts bad = %v", v)
+	}
+	if c.TierFloor != 1 || c.Phase != "discover.active" || !c.Runnable() ||
+		!slices.Equal(c.InPorts, []PortType{"ip", "cidr"}) || !slices.Equal(c.OutPorts, []PortType{"ip"}) {
+		t.Fatalf("discover.hosts = %+v", c)
 	}
 }
