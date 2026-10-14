@@ -17,6 +17,8 @@ func TestValid(t *testing.T) {
 		{Target{"a", Failed, Unreachable}, true},
 		{Target{"a", Failed, Timeout}, true},
 		{Target{"a", Failed, ToolError}, true},
+		{Target{"a", Failed, EgressRefused}, true},
+		{Target{"a", Skipped, EgressRefused}, false},
 		{Target{"a", Skipped, Refused}, true},
 		{Target{"a", Skipped, Excluded}, true},
 		{Target{"a", Done, Timeout}, false},

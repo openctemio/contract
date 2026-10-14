@@ -10,7 +10,10 @@
 //   - done: the target was scanned (whatever it found, nothing included);
 //   - failed: the tool tried the target and it failed, with a class:
 //     unreachable (no answer, no route, no name), timeout (the target's own
-//     time budget ran out) or tool_error (the tool failed on that target);
+//     time budget ran out), tool_error (the tool failed on that target) or
+//     egress_refused (the sensor's network confinement refused every
+//     connection the tool made toward the target: it was not reached, and
+//     nothing can be said about it);
 //   - skipped: the target was not run on purpose, with a class: refused (a
 //     policy refused it) or excluded (the job's exclusions cover it);
 //   - unfinished: the task stopped before the target got an outcome.
@@ -59,6 +62,11 @@ const (
 	Unreachable Class = "unreachable"
 	Timeout     Class = "timeout"
 	ToolError   Class = "tool_error"
+	// EgressRefused: the sensor's own egress confinement refused every
+	// connection toward the target. It settles the target like the other
+	// failures (the same sensor would refuse it again); a receiver shows it
+	// as "not reached", never as "nothing found".
+	EgressRefused Class = "egress_refused"
 )
 
 // Classes of a skipped target.
@@ -85,7 +93,7 @@ func (t Target) Valid() bool {
 	case Done, Unfinished:
 		return t.Class == ""
 	case Failed:
-		return t.Class == Unreachable || t.Class == Timeout || t.Class == ToolError
+		return t.Class == Unreachable || t.Class == Timeout || t.Class == ToolError || t.Class == EgressRefused
 	case Skipped:
 		return t.Class == Refused || t.Class == Excluded
 	}
