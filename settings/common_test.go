@@ -117,8 +117,15 @@ func TestResolveNarrowsCommonOptions(t *testing.T) {
 	); err == nil {
 		t.Fatal("sensor raised the tenant's concurrency")
 	}
-	// Above the tool's default is fine when no layer set a value.
-	if _, err := s.Resolve(Layer{Source: SourceScan, Values: map[string]any{"rate_limit": 1000}}); err != nil {
+	// A scan may not raise the tool's default: only an administrator may.
+	if _, err := s.Resolve(Layer{Source: SourceScan, Values: map[string]any{"rate_limit": 1000}}); err == nil || !strings.Contains(err.Error(), "default") {
+		t.Fatalf("scan raised the default: %v", err)
+	}
+	if _, err := s.Resolve(Layer{Source: SourceSensor, Values: map[string]any{"rate_limit": 1000}}); err != nil {
+		t.Fatalf("an administrator could not raise the default: %v", err)
+	}
+	// Without a default, the scan sets it freely within the bounds.
+	if _, err := s.Resolve(Layer{Source: SourceScan, Values: map[string]any{"concurrency": 50}}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -139,5 +146,21 @@ func TestValidName(t *testing.T) {
 		if ValidName(n) != want {
 			t.Errorf("ValidName(%q) != %v", n, want)
 		}
+	}
+}
+
+func TestLocalLayerNarrowsAnyKey(t *testing.T) {
+	s := MustParseSchema(testNucleiSchema)
+	// The local policy may lower a sensor-scope key, never raise it past an
+	// earlier layer's narrowing value.
+	if _, err := s.Resolve(Layer{Source: SourceLocal, Values: map[string]any{"concurrency": 5}}); err != nil {
+		t.Fatal(err)
+	}
+	c := MustParseSchema(commonSchema)
+	if _, err := c.Resolve(
+		Layer{Source: SourceSensor, Values: map[string]any{"rate_limit": 100}},
+		Layer{Source: SourceLocal, Values: map[string]any{"rate_limit": 200}},
+	); err == nil {
+		t.Fatal("local layer raised the rate")
 	}
 }
