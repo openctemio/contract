@@ -342,3 +342,87 @@ func Lock(k string) string {
 	}
 	return k
 }
+
+// Holding is the keys a running job holds while its targets settle one by
+// one. A key is released once some settled target produced it and no
+// target still pending produces it, so other work on that host can start
+// before the job ends (a pipeline: each host goes to the next tool as soon
+// as this one is done with it).
+//
+// Targets are keyed in the job's network and without one, because its
+// held keys may have been computed either way. A held key no target
+// produces (the job was keyed some other way) is never released: it stays
+// held until the job ends. A bucket marker stays held while any pending
+// address of the bucket does, a range key while any pending target
+// produces it. A target that is not one of the job's is ignored, so a
+// holder cannot release keys by naming targets the job never had. Not safe
+// for concurrent use.
+type Holding struct {
+	held    map[string]bool
+	keysOf  map[string][]string // target -> the held keys it produces
+	need    map[string]int      // held key -> pending targets producing it
+	settled map[string]bool
+}
+
+// NewHolding starts tracking held, the keys a job over targets in network
+// holds.
+func NewHolding(held, targets []string, network string) *Holding {
+	h := &Holding{
+		held:    make(map[string]bool, len(held)),
+		keysOf:  make(map[string][]string, len(targets)),
+		need:    make(map[string]int, len(held)),
+		settled: map[string]bool{},
+	}
+	for _, k := range held {
+		h.held[k] = true
+	}
+	for _, t := range targets {
+		if _, dup := h.keysOf[t]; dup {
+			continue
+		}
+		produced := TargetKeys(t, "")
+		if network != "" {
+			produced = append(produced, TargetKeys(t, network)...)
+		}
+		slices.Sort(produced)
+		produced = slices.Compact(produced)
+		mine := produced[:0]
+		for _, k := range produced {
+			if h.held[k] {
+				mine = append(mine, k)
+				h.need[k]++
+			}
+		}
+		h.keysOf[t] = mine
+	}
+	return h
+}
+
+// Settle records that target ended (whatever its outcome) and returns the
+// keys released by it: sorted, nil when none. Settling a target again, or
+// one that is not the job's, releases nothing.
+func (h *Holding) Settle(target string) []string {
+	keys, ok := h.keysOf[target]
+	if !ok || h.settled[target] {
+		return nil
+	}
+	h.settled[target] = true
+	var out []string
+	for _, k := range keys {
+		if h.need[k]--; h.need[k] == 0 && h.held[k] {
+			delete(h.held, k)
+			out = append(out, k)
+		}
+	}
+	return out
+}
+
+// Held is the keys still held: sorted.
+func (h *Holding) Held() []string {
+	out := make([]string, 0, len(h.held))
+	for k := range h.held {
+		out = append(out, k)
+	}
+	slices.Sort(out)
+	return out
+}
