@@ -201,3 +201,62 @@ func conflict(a, b []string) bool {
 	}
 	return false
 }
+
+func TestHolding(t *testing.T) {
+	targets := []string{"https://a.example.com/x", "b.example.com", "https://a.example.com/y", "203.0.113.7", "203.0.113.8", "198.51.100.0/24"}
+	held := Keys(targets, "")
+	h := NewHolding(held, targets, "")
+	steps := []struct {
+		settle string
+		want   []string
+	}{
+		{"b.example.com", []string{"b.example.com"}},
+		// A host with a target left stays held.
+		{"https://a.example.com/x", nil},
+		{"https://a.example.com/y", []string{"a.example.com"}},
+		// An address goes, its bucket marker stays while the other is pending.
+		{"203.0.113.7", []string{"203.0.113.7"}},
+		{"203.0.113.8", []string{"203.0.113.8", "in:203.0.113.0/24"}},
+		// Again, or a target the job never had: nothing.
+		{"203.0.113.8", nil},
+		{"evil.example.com", nil},
+		{"198.51.100.0/24", []string{"net:198.51.100.0/24"}},
+	}
+	for _, s := range steps {
+		if got := h.Settle(s.settle); !slices.Equal(got, s.want) {
+			t.Fatalf("Settle(%q) = %v, want %v", s.settle, got, s.want)
+		}
+	}
+	if left := h.Held(); len(left) != 0 {
+		t.Fatalf("still held after every target settled: %v", left)
+	}
+}
+
+func TestHolding_NeverReleasesWhatItCannotAttribute(t *testing.T) {
+	// A held key no target produces stays held until the job ends.
+	h := NewHolding([]string{"a.example.com", "opaque-key"}, []string{"a.example.com"}, "")
+	if got := h.Settle("a.example.com"); !slices.Equal(got, []string{"a.example.com"}) {
+		t.Fatalf("Settle = %v", got)
+	}
+	if left := h.Held(); !slices.Equal(left, []string{"opaque-key"}) {
+		t.Fatalf("Held = %v", left)
+	}
+	// A key the job does not hold is never released, though a target
+	// produces it.
+	h = NewHolding([]string{"a.example.com"}, []string{"a.example.com", "b.example.com"}, "")
+	if got := h.Settle("b.example.com"); got != nil {
+		t.Fatalf("released %v, which the job never held", got)
+	}
+}
+
+func TestHolding_EitherNetworkForm(t *testing.T) {
+	const net = "0b9e2c1a-1111-2222-3333-444455556666"
+	// Keyed without the network (a scan run) or with it (a sensor): both
+	// are released when the target settles.
+	for _, held := range [][]string{Keys([]string{"10.0.0.5"}, ""), Keys([]string{"10.0.0.5"}, net)} {
+		h := NewHolding(held, []string{"10.0.0.5", "10.0.0.5"}, net)
+		if got := h.Settle("10.0.0.5"); !slices.Equal(got, held) {
+			t.Fatalf("held %v: released %v", held, got)
+		}
+	}
+}
