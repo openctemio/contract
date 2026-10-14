@@ -133,3 +133,11 @@ func TestJobAndTenantLayerScopes(t *testing.T) {
 		t.Fatal("a job layer set a sensor-scope key")
 	}
 }
+
+func TestValidName(t *testing.T) {
+	for n, want := range map[string]bool{"rate_limit": true, "a": true, "Rate": false, "1x": false, "a-b": false, "": false} {
+		if ValidName(n) != want {
+			t.Errorf("ValidName(%q) != %v", n, want)
+		}
+	}
+}

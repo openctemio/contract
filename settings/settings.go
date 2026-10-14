@@ -139,6 +139,10 @@ var settingKeywords = map[string]bool{
 	"x-octm-common": true, "x-octm-flag": true,
 }
 
+// ValidName reports whether name is a well-formed setting key name
+// (^[a-z][a-z0-9_]{0,63}$).
+func ValidName(name string) bool { return settingNameRE.MatchString(name) }
+
 // SchemaError is why a schema is invalid. Path is a JSON pointer
 // into the schema document.
 type SchemaError struct {
