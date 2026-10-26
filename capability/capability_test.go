@@ -29,8 +29,8 @@ func TestEmbeddedTaxonomyLoads(t *testing.T) {
 	if _, err := load(taxonomyJSON); err != nil {
 		t.Fatal(err)
 	}
-	if got := len(All()); got != 33 {
-		t.Fatalf("capabilities = %d, want 33 (29 v1 + 4 later)", got)
+	if got := len(All()); got != 34 {
+		t.Fatalf("capabilities = %d, want 34 (30 v1 + 4 later)", got)
 	}
 }
 
@@ -295,5 +295,27 @@ func TestEveryAssetTypeInPortsIsCTIS(t *testing.T) {
 	sort.Strings(unknown)
 	if len(unknown) > 0 {
 		t.Fatalf("unknown CTIS asset types: %v", unknown)
+	}
+}
+
+// enumerate.subdomains sends DNS queries toward the target's name servers:
+// an active, tier 1 act with its own params, separate from passive discovery.
+func TestEnumerateSubdomains(t *testing.T) {
+	c, ok := Lookup("enumerate.subdomains@1")
+	if !ok {
+		t.Fatal("enumerate.subdomains@1 is missing")
+	}
+	if c.TierFloor != 1 || c.Phase != "discover.active" {
+		t.Errorf("tier floor %d phase %s, want 1 and discover.active", c.TierFloor, c.Phase)
+	}
+	var names []string
+	for _, p := range c.Params {
+		names = append(names, p.Name)
+	}
+	if !reflect.DeepEqual(names, []string{"method", "wordlist", "max_queries", "recursive_depth"}) {
+		t.Errorf("params = %v", names)
+	}
+	if p, _ := Lookup("discover.subdomains@1"); p.TierFloor != 0 {
+		t.Error("passive discovery must stay tier 0")
 	}
 }

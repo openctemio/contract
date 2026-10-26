@@ -37,6 +37,22 @@
       "attack": ["T1596.001", "T1590.002", "T1593.002"], "d3fend": ["D3-AI"], "capec": ["CAPEC-169"]
     },
     {
+      "id": "enumerate.subdomains", "major": 1, "status": "routed",
+      "name": "Subdomain enumeration", "description": "Find subdomains of a root domain by actively querying DNS for candidate names (a wordlist of labels), keeping only the names that resolve.",
+      "phase": "discover.active", "tier_floor": 1,
+      "in_ports": ["root_domain"], "out_ports": ["hostname"],
+      "params": [
+        {"name": "method", "type": "string", "description": "How candidate names are made.", "enum": ["bruteforce", "permutations"]},
+        {"name": "wordlist", "type": "string", "description": "Size class of the label list the platform supplies.", "enum": ["s", "m", "l"]},
+        {"name": "max_queries", "type": "integer", "description": "Send at most this many DNS queries per root domain.", "min": 1, "max": 10000000},
+        {"name": "recursive_depth", "type": "integer", "description": "Also enumerate under the names found, this many levels deep.", "min": 0, "max": 2}
+      ],
+      "outputs": [
+        {"select": "assets[type=domain|subdomain]", "paths": ["value"]}
+      ],
+      "attack": ["T1590.002", "T1595.003"], "d3fend": ["D3-NM"], "capec": ["CAPEC-309"]
+    },
+    {
       "id": "intel.passive", "major": 1, "status": "planned",
       "name": "Passive intelligence", "description": "Names, ranges and addresses from certificate transparency and passive DNS data.",
       "phase": "discover.passive", "tier_floor": 0,
