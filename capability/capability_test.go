@@ -29,8 +29,8 @@ func TestEmbeddedTaxonomyLoads(t *testing.T) {
 	if _, err := load(taxonomyJSON); err != nil {
 		t.Fatal(err)
 	}
-	if got := len(All()); got != 34 {
-		t.Fatalf("capabilities = %d, want 34 (30 v1 + 4 later)", got)
+	if got := len(All()); got != 35 {
+		t.Fatalf("capabilities = %d, want 35 (30 v1 + 5 later)", got)
 	}
 }
 

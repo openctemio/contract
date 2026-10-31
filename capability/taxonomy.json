@@ -53,6 +53,18 @@
       "attack": ["T1590.002", "T1595.003"], "d3fend": ["D3-NM"], "capec": ["CAPEC-309"]
     },
     {
+      "id": "monitor.web_content", "major": 1, "status": "routed",
+      "name": "Web content monitoring", "description": "Fetch listed URLs and report the response (status, type, size, SHA-256 and a capped body) so the platform can detect page and script changes. Nothing is executed.",
+      "phase": "discover.active", "tier_floor": 1,
+      "in_ports": ["url"], "out_ports": [],
+      "extra_outputs": ["asset:http_service", "asset:discovered_url", "asset:website"],
+      "params": [],
+      "outputs": [
+        {"select": "assets[type=http_service|discovered_url|website]", "paths": ["value", "properties.web_content"]}
+      ],
+      "attack": ["T1594"]
+    },
+    {
       "id": "intel.passive", "major": 1, "status": "planned",
       "name": "Passive intelligence", "description": "Names, ranges and addresses from certificate transparency and passive DNS data.",
       "phase": "discover.passive", "tier_floor": 0,
