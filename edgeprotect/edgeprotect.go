@@ -62,6 +62,9 @@ const (
 	AzureFD    = "azure_front_door"
 	Imperva    = "imperva"
 	F5         = "f5"
+	DataDome   = "datadome"
+	PerimeterX = "perimeterx"
+	Sucuri     = "sucuri"
 )
 
 // Bounds of what Classify reads.
