@@ -91,6 +91,36 @@ func TestClassifyVendorFixtures(t *testing.T) {
 		{"f5 rejected", 200, h("Server: BigIP"), "", `<html><title>Request Rejected</title>The requested URL was rejected. Please consult with your administrator. Your support ID is: 1234567890`,
 			Verdict{F5, Blocked, "f5.rejected"}},
 		{"f5 cookie fronted", 200, h("Set-Cookie: TS01a1b2c3=0123; Path=/"), "", "ok", Verdict{F5, Fronted, "f5.ts-cookie"}},
+
+		{"datadome challenge with header", 403, h("X-Datadome: protected", "Set-Cookie: datadome=abc; Path=/"), "",
+			`<script src="https://ct.captcha-delivery.com/c.js"></script>`, Verdict{DataDome, Challenged, "datadome.challenge-header"}},
+		{"datadome challenge with cookie only", 403, h("Set-Cookie: datadome=abc; Path=/"), "",
+			`<iframe src="https://geo.captcha-delivery.com/captcha/"></iframe>`, Verdict{DataDome, Challenged, "datadome.challenge-cookie"}},
+		{"datadome silent block answered with 200", 200, h("X-Datadome: protected"), "",
+			`<script>var dd={};</script><script src="https://ct.captcha-delivery.com/c.js"></script>`,
+			Verdict{DataDome, Challenged, "datadome.challenge-header"}},
+		{"datadome block", 403, h("Set-Cookie: datadome=abc; Path=/"), "", "<html>Forbidden</html>",
+			Verdict{DataDome, Blocked, "datadome.block"}},
+		{"datadome fronted by header", 200, h("X-Datadome: protected"), "Shop", "ok", Verdict{DataDome, Fronted, "datadome.header"}},
+		{"datadome fronted by cookie", 200, h("Set-Cookie: datadome=abc; Path=/"), "Shop", "ok", Verdict{DataDome, Fronted, "datadome.cookie"}},
+
+		{"perimeterx captcha", 403, h("Set-Cookie: _pxhd=abc; Path=/"), "",
+			`<div id="px-captcha"></div><script>window._pxAppId="PXabc";</script>`, Verdict{PerimeterX, Challenged, "perimeterx.captcha"}},
+		{"perimeterx silent block answered with 200", 200, nil, "",
+			`<div id="px-captcha"></div><script>window._pxAppId="PXabc";</script>`, Verdict{PerimeterX, Challenged, "perimeterx.captcha"}},
+		{"perimeterx block by title", 403, h("Set-Cookie: _px3=abc; Path=/"), "Access to this page has been denied", "<html></html>",
+			Verdict{PerimeterX, Blocked, "perimeterx.block-title"}},
+		{"perimeterx block by body", 403, h("Set-Cookie: _pxvid=abc; Path=/"), "", "<h1>Access to this page has been denied</h1>",
+			Verdict{PerimeterX, Blocked, "perimeterx.block-body"}},
+		{"perimeterx fronted by hd cookie", 200, h("Set-Cookie: _pxhd=abc; Path=/"), "Shop", "ok", Verdict{PerimeterX, Fronted, "perimeterx.hd-cookie"}},
+		{"perimeterx fronted by vid cookie", 200, h("Set-Cookie: _pxvid=abc; Path=/"), "Shop", "ok", Verdict{PerimeterX, Fronted, "perimeterx.vid-cookie"}},
+
+		{"sucuri block by id", 403, h("X-Sucuri-Id: 15012"), "Sucuri WebSite Firewall - Access Denied", "<html></html>",
+			Verdict{Sucuri, Blocked, "sucuri.block-id"}},
+		{"sucuri block by server", 403, h("Server: Sucuri/Cloudproxy"), "Sucuri WebSite Firewall - Access Denied", "<html></html>",
+			Verdict{Sucuri, Blocked, "sucuri.block-server"}},
+		{"sucuri fronted by id", 200, h("X-Sucuri-Id: 15012"), "Shop", "ok", Verdict{Sucuri, Fronted, "sucuri.id"}},
+		{"sucuri fronted by server", 200, h("Server: Sucuri/Cloudproxy"), "Shop", "ok", Verdict{Sucuri, Fronted, "sucuri.server"}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -120,6 +150,44 @@ func TestBareStatusIsNeverAnEdgeDecision(t *testing.T) {
 	// A vendor word in the body without its status or structure is not a block.
 	if v := Classify(200, nil, "Blog", []byte("we use cloudflare and attention required is a phrase")); v.State != Direct {
 		t.Errorf("blog post about the vendor: %+v", v)
+	}
+}
+
+// Weak markers decide only together with a vendor marker, and a stopping
+// decision resting on a weak marker needs a small page.
+func TestBotVendorsNeedVendorMarkerAndSmallPage(t *testing.T) {
+	big := strings.Repeat("x", 20000)
+	// A large normal page with the weak words and the vendor cookie is content.
+	if v := Classify(403, h("Set-Cookie: datadome=abc"), "", []byte("<html>"+big+"</html>")); v.State != Fronted || v.Vendor != DataDome {
+		t.Errorf("large datadome 403 page: %+v", v)
+	}
+	if v := Classify(403, h("Set-Cookie: _px3=abc"), "Access to this page has been denied",
+		[]byte("access to this page has been denied "+big)); v.State != Direct {
+		t.Errorf("large perimeterx page: %+v", v)
+	}
+	if v := Classify(403, h("Set-Cookie: _pxhd=abc"), "Access to this page has been denied",
+		[]byte("access to this page has been denied "+big)); v.State != Fronted || v.Vendor != PerimeterX {
+		t.Errorf("large perimeterx page with fronting cookie: %+v", v)
+	}
+	// Vendor text in a page without the vendor's header or cookie is not an edge.
+	if v := Classify(200, h("Server: nginx"), "Blog", []byte("how captcha-delivery.com works")); v.State != Direct {
+		t.Errorf("page that names captcha-delivery.com: %+v", v)
+	}
+	if v := Classify(403, nil, "Sucuri WebSite Firewall", nil); v.State != Direct {
+		t.Errorf("sucuri title without header: %+v", v)
+	}
+	if v := Classify(403, h("X-Sucuri-Id: 1"), "Forbidden", []byte("Forbidden")); v.State != Fronted {
+		t.Errorf("bare 403 behind sucuri must stay fronted: %+v", v)
+	}
+	for _, hd := range []http.Header{h("Set-Cookie: _px3=abc"), nil} {
+		if v := Classify(403, hd, "", []byte("Forbidden")); v.State.Stops() {
+			t.Errorf("bare 403 read as an edge decision: %+v", v)
+		}
+	}
+	// A challenge beats the fronting sign on the same answer.
+	v := Classify(200, h("X-Datadome: protected", "Set-Cookie: datadome=abc"), "", []byte("captcha-delivery.com"))
+	if v.State != Challenged || v.Vendor != DataDome {
+		t.Errorf("fronted and challenged: %+v", v)
 	}
 }
 
@@ -182,6 +250,11 @@ func TestRulesAreWellFormed(t *testing.T) {
 				}
 			}
 		}
+		// A status-gated stopping rule of a bot-management vendor rests on a
+		// weak sign, so it only fires on a small page.
+		if (r.Vendor == DataDome || r.Vendor == PerimeterX) && r.State == Blocked && r.MaxBodyLen == 0 {
+			t.Errorf("rule %s: a bot-vendor block needs MaxBodyLen", r.ID)
+		}
 		for _, m := range r.All {
 			if m.Body != strings.ToLower(m.Body) || m.Title != strings.ToLower(m.Title) ||
 				m.HeaderContains != strings.ToLower(m.HeaderContains) || m.Cookie != strings.ToLower(m.Cookie) {
@@ -196,7 +269,7 @@ func TestRulesAreWellFormed(t *testing.T) {
 			stops[r.Vendor] = true
 		}
 	}
-	for _, v := range []string{Cloudflare, CloudFront, Akamai, Fastly, AzureFD, Imperva, F5} {
+	for _, v := range []string{Cloudflare, CloudFront, Akamai, Fastly, AzureFD, Imperva, F5, DataDome, PerimeterX, Sucuri} {
 		if !stops[v] {
 			t.Errorf("vendor %s has no challenge or block rule", v)
 		}

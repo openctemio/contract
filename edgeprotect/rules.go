@@ -108,4 +108,40 @@ var DefaultRules = []Rule{
 		All: []Marker{{Cookie: "bigipserver"}}},
 	{ID: "f5.ts-cookie", Vendor: F5, State: Fronted,
 		All: []Marker{{Cookie: "ts01"}}},
+
+	// DataDome. A challenge can arrive with status 200 (a silent block), so
+	// the challenge rules take any status. The block rule rests on a weak
+	// sign (403 plus the cookie) and so only fires on a small page.
+	{ID: "datadome.challenge-header", Vendor: DataDome, State: Challenged,
+		All: []Marker{{Body: "captcha-delivery.com"}, {Header: "X-Datadome"}}},
+	{ID: "datadome.challenge-cookie", Vendor: DataDome, State: Challenged,
+		All: []Marker{{Body: "captcha-delivery.com"}, {Cookie: "datadome"}}},
+	{ID: "datadome.block", Vendor: DataDome, State: Blocked, Status: []int{403}, MaxBodyLen: 8192,
+		All: []Marker{{Cookie: "datadome"}}},
+	{ID: "datadome.header", Vendor: DataDome, State: Fronted,
+		All: []Marker{{Header: "X-Datadome"}}},
+	{ID: "datadome.cookie", Vendor: DataDome, State: Fronted,
+		All: []Marker{{Cookie: "datadome"}}},
+
+	// HUMAN (PerimeterX).
+	{ID: "perimeterx.captcha", Vendor: PerimeterX, State: Challenged,
+		All: []Marker{{Body: "px-captcha"}, {Body: "_pxappid"}}},
+	{ID: "perimeterx.block-title", Vendor: PerimeterX, State: Blocked, Status: []int{403}, MaxBodyLen: 16384,
+		All: []Marker{{Cookie: "_px"}, {Title: "access to this page has been denied"}}},
+	{ID: "perimeterx.block-body", Vendor: PerimeterX, State: Blocked, Status: []int{403}, MaxBodyLen: 16384,
+		All: []Marker{{Cookie: "_px"}, {Body: "access to this page has been denied"}}},
+	{ID: "perimeterx.hd-cookie", Vendor: PerimeterX, State: Fronted,
+		All: []Marker{{Cookie: "_pxhd"}}},
+	{ID: "perimeterx.vid-cookie", Vendor: PerimeterX, State: Fronted,
+		All: []Marker{{Cookie: "_pxvid"}}},
+
+	// Sucuri.
+	{ID: "sucuri.block-id", Vendor: Sucuri, State: Blocked, Status: []int{403},
+		All: []Marker{{Header: "X-Sucuri-Id"}, {Title: "sucuri website firewall"}}},
+	{ID: "sucuri.block-server", Vendor: Sucuri, State: Blocked, Status: []int{403},
+		All: []Marker{{Header: "Server", HeaderContains: "sucuri"}, {Title: "sucuri website firewall"}}},
+	{ID: "sucuri.id", Vendor: Sucuri, State: Fronted,
+		All: []Marker{{Header: "X-Sucuri-Id"}}},
+	{ID: "sucuri.server", Vendor: Sucuri, State: Fronted,
+		All: []Marker{{Header: "Server", HeaderContains: "sucuri"}}},
 }
