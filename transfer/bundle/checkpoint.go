@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/openctemio/ctis/transfer"
+	"github.com/openctemio/contract/transfer"
 )
 
 // State is a consumer's durable progress on one feed.

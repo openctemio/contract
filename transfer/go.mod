@@ -1,4 +1,4 @@
-module github.com/openctemio/ctis/transfer
+module github.com/openctemio/contract/transfer
 
 go 1.27.0
 

@@ -20,7 +20,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/openctemio/ctis/capability"
+	"github.com/openctemio/contract/capability"
 )
 
 // Repository is the source of a code scan.

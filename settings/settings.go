@@ -52,7 +52,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/openctemio/ctis/tooloption"
+	"github.com/openctemio/contract/tooloption"
 )
 
 // Limits of a settings schema.

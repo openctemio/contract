@@ -31,7 +31,7 @@
 // (no separators, no "..") so a name can never escape a local origin or the
 // cache. Logs carry names, origins, sizes and errors, never content.
 //
-// The package is its own Go module (github.com/openctemio/ctis/transfer,
+// The package is its own Go module (github.com/openctemio/contract/transfer,
 // tagged transfer/vX.Y.Z) so the ctis root module keeps zero external
 // dependencies; it needs only the standard library and the Prometheus
 // client. It is a contract: a feed publisher, the platform and any consumer

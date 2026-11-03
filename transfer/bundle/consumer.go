@@ -15,7 +15,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/openctemio/ctis/transfer"
+	"github.com/openctemio/contract/transfer"
 )
 
 // Errors of a consumer run.

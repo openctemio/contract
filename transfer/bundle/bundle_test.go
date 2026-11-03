@@ -18,7 +18,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openctemio/ctis/transfer"
+	"github.com/openctemio/contract/transfer"
 )
 
 const feed = "testfeed"
