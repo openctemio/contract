@@ -48,3 +48,11 @@ pull request. The record is kept for as long as the project distributes your
 contribution, because it is the evidence of the license. To see or correct
 your record, or to ask for its removal, write to info@openctem.io; anything
 not needed as evidence of the license is removed.
+
+## Go version
+
+Each module's `go` directive is the minimum its code and dependencies need,
+never newer than the oldest Go the consumers build with (the sensor SDK, the
+platform API and the sensor). CI enforces the ceiling with
+`.github/scripts/check-go-directive.sh`; raise its floor only after every
+consumer builds with that Go.
