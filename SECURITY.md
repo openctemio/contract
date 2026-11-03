@@ -27,8 +27,9 @@ Include as much of the following as you can:
 
 ## Supported versions
 
-Security fixes go into the latest release of openctemio/ctis (the
-specification, the JSON Schema and the Go module). Upgrade to the latest
+Security fixes go into the latest release of openctemio/contract (the
+Go modules `github.com/openctemio/contract` and
+`github.com/openctemio/contract/transfer`). Upgrade to the latest
 release before reporting, where you can.
 
 ## Safe harbor

@@ -7,8 +7,6 @@ import (
 	"sort"
 	"strings"
 	"testing"
-
-	"github.com/openctemio/ctis"
 )
 
 var update = flag.Bool("update", false, "rewrite docs/capabilities.md")
@@ -148,17 +146,17 @@ func TestLookupReturnsCopies(t *testing.T) {
 
 func TestAcceptsAndMayEmit(t *testing.T) {
 	ports, _ := Lookup("scan.ports@1")
-	for _, at := range []string{"domain", "subdomain", "ip_address", "host"} {
+	for _, at := range []string{"domain_name", "ip_address", "host"} {
 		if !ports.Accepts(at) {
 			t.Errorf("scan.ports should accept %s", at)
 		}
 	}
-	if ports.Accepts("repository") || ports.Accepts("http_service") {
+	if ports.Accepts("repository") || ports.Accepts("web_origin") {
 		t.Error("scan.ports accepts a type no input port carries")
 	}
 	for kind, want := range map[string]bool{
-		"asset:open_port": true, "asset:ip_address": true, "asset:host": true,
-		"asset:domain":      true, // re-observed input
+		"asset:service": true, "asset:ip_address": true, "asset:host": true,
+		"asset:domain_name": true, // re-observed input
 		"asset:certificate": false, "asset:repository": false, "asset:": false,
 		"finding:vulnerability": false, "dependency": false, "bogus": false,
 	} {
@@ -279,9 +277,9 @@ func TestMarkdownIsCurrent(t *testing.T) {
 	}
 }
 
-func TestEveryAssetTypeInPortsIsCTIS(t *testing.T) {
+func TestEveryAssetTypeInPortsIsKnown(t *testing.T) {
 	known := map[string]bool{}
-	for _, at := range ctis.AllAssetTypes() {
+	for _, at := range AllAssetTypes() {
 		known[string(at)] = true
 	}
 	var unknown []string

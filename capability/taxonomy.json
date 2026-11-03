@@ -8,14 +8,14 @@
     {"id": "collect", "label": "Collection", "ctem_stage": "discovery", "description": "Pulls assets and findings from another product or a file."}
   ],
   "port_types": [
-    {"type": "root_domain", "label": "Root domain", "carries": ["domain"]},
-    {"type": "hostname", "label": "Hostname", "carries": ["domain", "subdomain"]},
+    {"type": "root_domain", "label": "Root domain", "carries": ["domain_name"]},
+    {"type": "hostname", "label": "Hostname", "carries": ["domain_name"]},
     {"type": "ip", "label": "IP address", "carries": ["ip_address", "host"]},
-    {"type": "cidr", "label": "Network range", "carries": ["network", "subnet"]},
-    {"type": "service", "label": "Service (host:port)", "carries": ["open_port", "service"]},
-    {"type": "url", "label": "URL", "carries": ["http_service", "discovered_url", "website", "api", "web_application"]},
+    {"type": "cidr", "label": "Network range", "carries": ["ip_range", "subnet"]},
+    {"type": "service", "label": "Service (host:port)", "carries": ["service"]},
+    {"type": "url", "label": "URL", "carries": ["web_origin", "api", "web_application"]},
     {"type": "repository", "label": "Repository", "carries": ["repository"]},
-    {"type": "container_image", "label": "Container image", "carries": ["container"]},
+    {"type": "container_image", "label": "Container image", "carries": ["container_image", "container"]},
     {"type": "cloud_account", "label": "Cloud account", "carries": ["cloud_account"]},
     {"type": "finding", "label": "Finding", "carries": []},
     {"type": "endpoint", "label": "Web endpoint (method and path)", "carries": []}
@@ -32,7 +32,7 @@
         {"name": "max_results", "type": "integer", "description": "Stop after this many names per root domain.", "min": 1, "max": 5000}
       ],
       "outputs": [
-        {"select": "assets[type=domain|subdomain]", "paths": ["value", "properties.root_domain"]}
+        {"select": "assets[type=domain_name]", "paths": ["value", "properties.root_domain"]}
       ],
       "attack": ["T1596.001", "T1590.002", "T1593.002"], "d3fend": ["D3-AI"], "capec": ["CAPEC-169"]
     },
@@ -48,7 +48,7 @@
         {"name": "recursive_depth", "type": "integer", "description": "Also enumerate under the names found, this many levels deep.", "min": 0, "max": 2}
       ],
       "outputs": [
-        {"select": "assets[type=domain|subdomain]", "paths": ["value"]}
+        {"select": "assets[type=domain_name]", "paths": ["value"]}
       ],
       "attack": ["T1590.002", "T1595.003"], "d3fend": ["D3-NM"], "capec": ["CAPEC-309"]
     },
@@ -57,10 +57,10 @@
       "name": "Web content monitoring", "description": "Fetch listed URLs and report the response (status, type, size, SHA-256 and a capped body) so the platform can detect page and script changes. Nothing is executed.",
       "phase": "discover.active", "tier_floor": 1,
       "in_ports": ["url"], "out_ports": [],
-      "extra_outputs": ["asset:http_service", "asset:discovered_url", "asset:website"],
+      "extra_outputs": ["asset:web_origin"],
       "params": [],
       "outputs": [
-        {"select": "assets[type=http_service|discovered_url|website]", "paths": ["value", "properties.web_content"]}
+        {"select": "assets[type=web_origin]", "paths": ["value", "properties.web_content"]}
       ],
       "attack": ["T1594"]
     },
@@ -85,7 +85,7 @@
         {"name": "wildcard_filter", "type": "boolean", "description": "Drop names that only resolve through a wildcard record."}
       ],
       "outputs": [
-        {"select": "assets[type=domain|subdomain]", "paths": ["value", "technical.domain.dns_records[].type", "technical.domain.dns_records[].value"]}
+        {"select": "assets[type=domain_name]", "paths": ["value", "technical.domain.dns_records[].type", "technical.domain.dns_records[].value"]}
       ],
       "attack": ["T1590.002"], "d3fend": ["D3-NM"], "capec": ["CAPEC-309"]
     },
@@ -98,7 +98,7 @@
         {"name": "follow_registrar", "type": "boolean", "description": "Also ask the registrar RDAP service the registry answer links to (registrant details a thin registry does not hold)."}
       ],
       "outputs": [
-        {"select": "assets[type=domain]", "paths": ["value", "technical.domain.whois"]}
+        {"select": "assets[type=domain_name]", "paths": ["value", "technical.domain.whois"]}
       ],
       "attack": ["T1596.002", "T1590.001"], "d3fend": ["D3-AI"], "capec": ["CAPEC-169"]
     },
@@ -113,7 +113,7 @@
       ],
       "outputs": [
         {"select": "assets[type=ip_address]", "paths": ["value", "technical.ip_address.asn"]},
-        {"select": "assets[type=network]", "paths": ["value", "properties.asn"]}
+        {"select": "assets[type=ip_range]", "paths": ["value", "properties.asn"]}
       ],
       "attack": ["T1590.005", "T1596.002"], "d3fend": ["D3-AI", "D3-NM"], "capec": ["CAPEC-169"]
     },
@@ -143,7 +143,7 @@
         {"name": "rate", "type": "integer", "description": "Maximum requests per second.", "min": 1, "max": 100000}
       ],
       "outputs": [
-        {"shape": "open_port_assets", "select": "assets[type=open_port]", "paths": ["value", "properties.host", "properties.port", "properties.protocol"]},
+        {"shape": "open_port_assets", "select": "assets[type=service]", "paths": ["value", "properties.host", "properties.port", "properties.protocol"]},
         {"shape": "ip_ports", "select": "assets[type=ip_address|host]", "paths": ["value", "technical.ip_address.ports[].port"]}
       ],
       "attack": ["T1595.001", "T1046"], "d3fend": ["D3-NM"], "capec": ["CAPEC-300"]
@@ -155,7 +155,7 @@
       "in_ports": ["service"], "out_ports": ["service"],
       "params": [],
       "outputs": [
-        {"select": "assets[type=open_port|service]", "paths": ["value"], "any_of": ["technical.service.name", "properties.service"]}
+        {"select": "assets[type=service]", "paths": ["value"], "any_of": ["technical.service.name", "properties.service"]}
       ],
       "attack": ["T1595.001", "T1592.002"], "d3fend": ["D3-SWI"], "capec": ["CAPEC-541"]
     },
@@ -173,7 +173,7 @@
         {"name": "api_schema", "type": "boolean", "description": "Fetch API schema documents (OpenAPI, GraphQL introspection) at well-known paths and report their operations as endpoints."}
       ],
       "outputs": [
-        {"select": "assets[type=http_service]", "paths": ["value", "properties.status_code"]}
+        {"select": "assets[type=web_origin]", "paths": ["value", "properties.status_code"]}
       ],
       "attack": ["T1595", "T1594"], "d3fend": ["D3-AI"], "capec": ["CAPEC-541"]
     },
@@ -184,7 +184,7 @@
       "in_ports": ["url", "service"], "out_ports": ["url", "service"],
       "params": [],
       "outputs": [
-        {"select": "assets[type=http_service|open_port|service]", "paths": ["value", "properties.technologies"]}
+        {"select": "assets[type=web_origin|service]", "paths": ["value", "properties.technologies"]}
       ],
       "attack": ["T1592.002"], "d3fend": ["D3-SWI"], "capec": ["CAPEC-541"]
     },
@@ -207,13 +207,13 @@
       "in_ports": ["url"], "out_ports": ["url"],
       "params": [],
       "outputs": [
-        {"select": "assets[type=http_service|website|web_application]", "paths": ["value", "properties.screenshot"]}
+        {"select": "assets[type=web_origin|web_application]", "paths": ["value", "properties.screenshot"]}
       ],
       "attack": ["T1594"]
     },
     {
       "id": "crawl.web", "major": 1, "status": "routed",
-      "name": "Web crawl", "description": "Crawl web services for URLs, staying on the same host. Reports endpoints (CTIS 1.6), or discovered_url assets from producers before 1.6.",
+      "name": "Web crawl", "description": "Crawl web services for URLs, staying on the same host. Reports endpoints.",
       "phase": "discover.active", "tier_floor": 1,
       "in_ports": ["url"], "out_ports": ["url", "endpoint"],
       "params": [
@@ -222,7 +222,6 @@
         {"name": "max_urls", "type": "integer", "description": "Stop after this many URLs per start URL.", "min": 1, "max": 5000}
       ],
       "outputs": [
-        {"select": "assets[type=discovered_url]", "paths": ["value", "properties.host"]},
         {"select": "endpoints", "paths": ["origin", "path"]}
       ],
       "attack": ["T1594", "T1595.003"], "d3fend": ["D3-AI"]
@@ -232,12 +231,12 @@
       "name": "Cloud resource discovery", "description": "List the resources of a cloud account through its read-only API.",
       "phase": "discover.passive", "tier_floor": 0,
       "in_ports": ["cloud_account"], "out_ports": ["cloud_account"],
-      "extra_outputs": ["asset:compute", "asset:storage", "asset:database", "asset:serverless", "asset:container_registry", "asset:kubernetes_cluster", "asset:load_balancer", "asset:vpc", "asset:subnet", "asset:firewall", "asset:iam_user", "asset:iam_role", "asset:service_account"],
+      "extra_outputs": ["asset:host", "asset:cloud_resource", "asset:storage", "asset:database", "asset:serverless", "asset:container_registry", "asset:kubernetes_cluster", "asset:load_balancer", "asset:vpc", "asset:subnet", "asset:firewall", "asset:identity"],
       "params": [
         {"name": "regions", "type": "string_list", "description": "Only these regions; empty means every region the account uses."}
       ],
       "outputs": [
-        {"select": "assets[type=compute|storage|database|serverless|container_registry|kubernetes_cluster|load_balancer|vpc|subnet|firewall]", "paths": ["value", "technical.cloud.provider", "technical.cloud.resource_id"]}
+        {"select": "assets[type=host|cloud_resource|storage|database|serverless|container_registry|kubernetes_cluster|load_balancer|vpc|subnet|firewall]", "paths": ["value", "technical.cloud.provider", "technical.cloud.resource_id"]}
       ],
       "attack": ["T1580", "T1526"], "d3fend": ["D3-AI"]
     },

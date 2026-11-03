@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  # Upgrade together with .golangci.yml.
+  GOLANGCI_LINT_VERSION: v2.14.0
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: ['1.22', '1.26', '1.27']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ matrix.go-version }}
+          cache: true
+
+      - name: Verify zero external dependencies
+        run: |
+          DEPS=$(go list -m all 2>/dev/null | grep -v "^github.com/openctemio/contract$" | wc -l)
+          if [ "$DEPS" -gt 0 ]; then
+            echo "ERROR: the root module must have zero external dependencies"
+            go list -m all
+            exit 1
+          fi
+          echo "Zero external dependencies confirmed"
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Run tests
+        run: go test -race ./...
+
+  # The nested module needs a newer Go than the root module.
+  test-transfer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27'
+          cache: true
+          cache-dependency-path: transfer/go.sum
+
+      - name: Build and test
+        working-directory: transfer
+        run: |
+          go build ./...
+          go vet ./...
+          go test -race ./...
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Actions are pinned to commit SHAs
+        run: bash .github/scripts/check-action-pins.sh
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27'
+          cache: true
+          cache-dependency-path: transfer/go.sum
+
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Check formatting
+        run: |
+          UNFORMATTED=$(gofmt -l .)
+          if [ -n "$UNFORMATTED" ]; then
+            echo "Files not formatted:"
+            echo "$UNFORMATTED"
+            exit 1
+          fi
+
+      - name: Run golangci-lint (root module)
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          version: ${{ env.GOLANGCI_LINT_VERSION }}
+
+      - name: Run golangci-lint (transfer module)
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          version: ${{ env.GOLANGCI_LINT_VERSION }}
+          working-directory: transfer
+          args: --config=${{ github.workspace }}/.golangci.yml

@@ -1,11 +1,10 @@
 package capability
 
 import (
+	"encoding/json"
 	"slices"
 	"strings"
 	"testing"
-
-	"github.com/openctemio/ctis"
 )
 
 func mustLookup(t *testing.T, ref string) Capability {
@@ -17,24 +16,25 @@ func mustLookup(t *testing.T, ref string) Capability {
 	return c
 }
 
-func TestCheckConformingReconOutput(t *testing.T) {
-	// Real converter output for each recon capability conforms.
-	cases := map[string]*ctis.ReconToCTISInput{
-		"discover.subdomains@1": {ScannerName: "subfinder", ReconType: "subdomain", Target: "example.com",
-			Subdomains: []ctis.SubdomainInput{{Host: "a.example.com", Domain: "example.com", Source: "crt"}}},
-		"resolve.dns@1": {ScannerName: "dnsx", ReconType: "dns", Target: "example.com",
-			DNSRecords: []ctis.DNSRecordInput{{Host: "a.example.com", RecordType: "A", Values: []string{"192.0.2.1"}}}},
-		"probe.http@1": {ScannerName: "httpx", ReconType: "http_probe", Target: "a.example.com",
-			LiveHosts: []ctis.LiveHostInput{{URL: "https://a.example.com", Host: "a.example.com", StatusCode: 200, Scheme: "https", Port: 443}}},
-		"crawl.web@1": {ScannerName: "katana", ReconType: "url_crawl", Target: "https://a.example.com",
-			URLs: []ctis.DiscoveredURLInput{{URL: "https://a.example.com/login", Method: "GET"}}},
+// doc decodes a CTIS JSON document, the form Check takes.
+func doc(t *testing.T, s string) map[string]any {
+	t.Helper()
+	var m map[string]any
+	if err := json.Unmarshal([]byte(s), &m); err != nil {
+		t.Fatal(err)
+	}
+	return m
+}
+
+func TestCheckConformingOutputs(t *testing.T) {
+	cases := map[string]string{
+		"discover.subdomains@1": `{"assets":[{"type":"domain_name","value":"a.example.com","properties":{"root_domain":"example.com"}}]}`,
+		"resolve.dns@1":         `{"assets":[{"type":"domain_name","value":"a.example.com","technical":{"domain":{"dns_records":[{"type":"A","value":"192.0.2.1"}]}}}]}`,
+		"probe.http@1":          `{"assets":[{"type":"web_origin","value":"https://a.example.com","properties":{"status_code":200}}]}`,
+		"crawl.web@1":           `{"endpoints":[{"origin":"https://a.example.com","path":"/login"}]}`,
 	}
 	for ref, in := range cases {
-		r, err := ctis.ConvertReconToCTIS(in, nil)
-		if err != nil {
-			t.Fatalf("%s: %v", ref, err)
-		}
-		v, err := mustLookup(t, ref).Check(r, CheckOptions{})
+		v, err := mustLookup(t, ref).Check(doc(t, in), CheckOptions{})
 		if err != nil || len(v) != 0 {
 			t.Errorf("%s: violations %v, err %v", ref, v, err)
 		}
@@ -43,22 +43,17 @@ func TestCheckConformingReconOutput(t *testing.T) {
 
 func TestCheckScanPortsShapes(t *testing.T) {
 	c := mustLookup(t, "scan.ports@1")
-	in := &ctis.ReconToCTISInput{ScannerName: "naabu", ReconType: "port", Target: "192.0.2.1",
-		OpenPorts: []ctis.OpenPortInput{{IP: "192.0.2.1", Port: 443, Protocol: "tcp"}}}
-	opts := ctis.DefaultReconConverterOptions()
-	for _, group := range []bool{true, false} {
-		opts.GroupByIP = group
-		r, err := ctis.ConvertReconToCTIS(in, opts)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if v, _ := c.Check(r, CheckOptions{}); len(v) != 0 {
-			t.Errorf("group=%v: %v", group, v)
+	for name, in := range map[string]string{
+		"service assets": `{"assets":[{"type":"service","value":"192.0.2.1:443","properties":{"host":"192.0.2.1","port":443,"protocol":"tcp"}}]}`,
+		"grouped by ip":  `{"assets":[{"type":"ip_address","value":"192.0.2.1","technical":{"ip_address":{"ports":[{"port":443}]}}}]}`,
+	} {
+		if v, _ := c.Check(doc(t, in), CheckOptions{}); len(v) != 0 {
+			t.Errorf("%s: %v", name, v)
 		}
 	}
 	// An IP asset without ports misses the ip_ports shape unless the tool
 	// declared the other shape.
-	r := &ctis.Report{Assets: []ctis.Asset{{Type: ctis.AssetTypeIPAddress, Value: "192.0.2.1"}}}
+	r := doc(t, `{"assets":[{"type":"ip_address","value":"192.0.2.1"}]}`)
 	v, _ := c.Check(r, CheckOptions{})
 	if len(v) != 1 || v[0].Path != "technical.ip_address.ports[].port" || v[0].Record != "/assets/0" {
 		t.Fatalf("violations = %v", v)
@@ -67,7 +62,7 @@ func TestCheckScanPortsShapes(t *testing.T) {
 		t.Fatalf("shape-filtered = %v", v)
 	}
 	// An empty ports list is missing, not present.
-	r.Assets[0].Technical = &ctis.AssetTechnical{IPAddress: &ctis.IPAddressTechnical{}}
+	r = doc(t, `{"assets":[{"type":"ip_address","value":"192.0.2.1","technical":{"ip_address":{"ports":[]}}}]}`)
 	if v, _ := c.Check(r, CheckOptions{}); len(v) != 1 {
 		t.Fatalf("empty list = %v", v)
 	}
@@ -75,11 +70,8 @@ func TestCheckScanPortsShapes(t *testing.T) {
 
 func TestCheckRefusesUndeclaredOutputs(t *testing.T) {
 	c := mustLookup(t, "scan.ports@1")
-	r := &ctis.Report{
-		Assets:       []ctis.Asset{{Type: ctis.AssetTypeRepository, Value: "github.com/a/b"}},
-		Findings:     []ctis.Finding{{Type: ctis.FindingTypeVulnerability, Title: "x"}},
-		Dependencies: []ctis.Dependency{{Name: "x"}},
-	}
+	r := doc(t, `{"assets":[{"type":"repository","value":"github.com/a/b"}],
+		"findings":[{"type":"vulnerability","title":"x"}],"dependencies":[{"name":"x"}]}`)
 	v, err := c.Check(r, CheckOptions{})
 	if err != nil {
 		t.Fatal(err)
@@ -101,14 +93,12 @@ func TestCheckRefusesUndeclaredOutputs(t *testing.T) {
 
 func TestCheckSecretsNeedMaskedValue(t *testing.T) {
 	c := mustLookup(t, "secrets.code@1")
-	f := ctis.Finding{Type: ctis.FindingTypeSecret, Title: "AWS key", RuleID: "aws-access-key",
-		Location: &ctis.FindingLocation{Path: "config.yml", StartLine: 3}}
-	r := &ctis.Report{Findings: []ctis.Finding{f}}
+	r := doc(t, `{"findings":[{"type":"secret","title":"AWS key","rule_id":"aws-access-key","location":{"path":"config.yml","start_line":3}}]}`)
 	v, _ := c.Check(r, CheckOptions{})
 	if len(v) != 1 || v[0].Path != "secret.masked_value" || !strings.Contains(v[0].String(), "missing") {
 		t.Fatalf("violations = %v", v)
 	}
-	r.Findings[0].Secret = &ctis.SecretDetails{MaskedValue: "AKIA****"}
+	r = doc(t, `{"findings":[{"type":"secret","title":"AWS key","rule_id":"aws-access-key","location":{"path":"config.yml","start_line":3},"secret":{"masked_value":"AKIA****"}}]}`)
 	if v, _ := c.Check(r, CheckOptions{}); len(v) != 0 {
 		t.Fatalf("violations = %v", v)
 	}
@@ -116,12 +106,12 @@ func TestCheckSecretsNeedMaskedValue(t *testing.T) {
 
 func TestCheckAnyOf(t *testing.T) {
 	c := mustLookup(t, "vuln.templates@1")
-	r := &ctis.Report{Findings: []ctis.Finding{{Type: ctis.FindingTypeVulnerability, Title: "t", RuleID: "r", Severity: ctis.SeverityHigh}}}
+	r := doc(t, `{"findings":[{"type":"vulnerability","title":"t","rule_id":"r","severity":"high"}]}`)
 	v, _ := c.Check(r, CheckOptions{})
 	if len(v) != 1 || v[0].Kind != "missing_any_of" || !strings.Contains(v[0].String(), "needs one of") {
 		t.Fatalf("violations = %v", v)
 	}
-	r.Findings[0].Network = &ctis.NetworkLocation{Host: "a.example.com", Port: 443}
+	r = doc(t, `{"findings":[{"type":"vulnerability","title":"t","rule_id":"r","severity":"high","network":{"host":"a.example.com","port":443}}]}`)
 	if v, _ := c.Check(r, CheckOptions{}); len(v) != 0 {
 		t.Fatalf("violations = %v", v)
 	}
@@ -129,10 +119,14 @@ func TestCheckAnyOf(t *testing.T) {
 
 func TestCheckIsBounded(t *testing.T) {
 	c := mustLookup(t, "sast.code@1")
-	r := &ctis.Report{}
-	for i := 0; i < 1000; i++ {
-		r.Findings = append(r.Findings, ctis.Finding{Type: ctis.FindingTypeVulnerability})
+	recs := func(n int, typ string) []any {
+		out := make([]any, n)
+		for i := range out {
+			out[i] = map[string]any{"type": typ}
+		}
+		return out
 	}
+	r := map[string]any{"findings": recs(1000, "vulnerability")}
 	v, _ := c.Check(r, CheckOptions{})
 	if len(v) != 100 {
 		t.Fatalf("default cap: %d", len(v))
@@ -142,15 +136,12 @@ func TestCheckIsBounded(t *testing.T) {
 		t.Fatalf("cap 3: %d", len(v))
 	}
 	// The cap holds while undeclared outputs are counted too.
-	r.Assets = make([]ctis.Asset, 200)
+	r["assets"] = recs(200, "host")
 	if v, _ := c.Check(r, CheckOptions{MaxViolations: 5}); len(v) != 5 {
 		t.Fatalf("cap on assets: %d", len(v))
 	}
-	r.Assets = nil
-	r.Findings = make([]ctis.Finding, 200)
-	for i := range r.Findings {
-		r.Findings[i].Type = "web3"
-	}
+	delete(r, "assets")
+	r["findings"] = recs(200, "web3")
 	if v, _ := c.Check(r, CheckOptions{MaxViolations: 5}); len(v) != 5 {
 		t.Fatalf("cap on findings: %d", len(v))
 	}
@@ -161,11 +152,10 @@ func TestCheckNilAndEmpty(t *testing.T) {
 	if v, err := c.Check(nil, CheckOptions{}); v != nil || err != nil {
 		t.Fatal("nil report")
 	}
-	if v, _ := c.Check(&ctis.Report{}, CheckOptions{}); len(v) != 0 {
+	if v, _ := c.Check(map[string]any{}, CheckOptions{}); len(v) != 0 {
 		t.Fatal("an empty result conforms")
 	}
-	r := &ctis.Report{Dependencies: []ctis.Dependency{{Name: "lodash"}}}
-	v, _ := c.Check(r, CheckOptions{})
+	v, _ := c.Check(doc(t, `{"dependencies":[{"name":"lodash"}]}`), CheckOptions{})
 	if len(v) != 1 || v[0].Path != "version" || v[0].Record != "/dependencies/0" {
 		t.Fatalf("violations = %v", v)
 	}
@@ -186,8 +176,8 @@ func TestPresent(t *testing.T) {
 	}
 }
 
-// Endpoints (CTIS 1.6) are an output kind of their own: a capability with
-// an endpoint port, in or out, or the endpoint extra output may report them.
+// Endpoints are an output kind of their own: a capability with an endpoint
+// port, in or out, or the endpoint extra output may report them.
 func TestEndpointOutputs(t *testing.T) {
 	crawl, _ := Lookup("crawl.web@1")
 	dast, _ := Lookup("dast.web@1")
@@ -208,7 +198,7 @@ func TestEndpointOutputs(t *testing.T) {
 	if p, ok := probe.Param("api_schema"); !ok || p.Type != ParamBoolean {
 		t.Error("probe.http api_schema")
 	}
-	r := &ctis.Report{Endpoints: []ctis.Endpoint{{Origin: "https://a.example", Path: "/x"}, {Origin: "https://a.example"}}}
+	r := doc(t, `{"endpoints":[{"origin":"https://a.example","path":"/x"},{"origin":"https://a.example"}]}`)
 	v, err := crawl.Check(r, CheckOptions{})
 	if err != nil {
 		t.Fatal(err)
@@ -220,23 +210,18 @@ func TestEndpointOutputs(t *testing.T) {
 	if len(v) != 1 || v[0].Kind != "not_allowed" || v[0].Record != "/endpoints" {
 		t.Fatalf("scan.ports violations %v", v)
 	}
-	// A legacy crawl report (discovered_url assets only) still conforms.
-	legacy := &ctis.Report{Assets: []ctis.Asset{{Type: ctis.AssetTypeDiscoveredURL, Value: "https://a.example/x", Properties: ctis.Properties{"host": "a.example"}}}}
-	if v, _ := crawl.Check(legacy, CheckOptions{}); v != nil {
-		t.Fatalf("legacy crawl %v", v)
-	}
 	// A web finding located by finding.web conforms to dast.web and
 	// vuln.templates.
-	f := ctis.Finding{RuleID: "r", Severity: ctis.SeverityHigh, Title: "t", Type: ctis.FindingTypeVulnerability, Web: &ctis.WebLocation{URL: "https://a.example/x"}}
+	f := doc(t, `{"findings":[{"rule_id":"r","severity":"high","title":"t","type":"vulnerability","web":{"url":"https://a.example/x"}}]}`)
 	for _, id := range []string{"dast.web@1", "vuln.templates@1"} {
 		c, _ := Lookup(id)
-		if !c.Accepts("http_service") {
+		if !c.Accepts("web_origin") {
 			t.Errorf("%s keeps its url input", id)
 		}
 		if !containsPort(c.InPorts, PortEndpoint) {
 			t.Errorf("%s takes endpoints", id)
 		}
-		if v, _ := c.Check(&ctis.Report{Findings: []ctis.Finding{f}}, CheckOptions{}); v != nil {
+		if v, _ := c.Check(f, CheckOptions{}); v != nil {
 			t.Errorf("%s: %v", id, v)
 		}
 	}
@@ -261,36 +246,34 @@ func TestEndpointRuleValidation(t *testing.T) {
 	if err := (Rule{Select: "endpoints", Paths: []string{"origin", "params[].name"}}).validate(c, tax.PortTypes); err != nil {
 		t.Error(err)
 	}
-	if err := (Rule{Select: "endpoints", Paths: []string{"nope"}}).validate(c, tax.PortTypes); err == nil {
-		t.Error("an unknown endpoint member")
+	if err := (Rule{Select: "endpoints", Paths: []string{"Nope"}}).validate(c, tax.PortTypes); err == nil {
+		t.Error("a malformed path")
 	}
 }
 
 func TestCheckLookupOutputs(t *testing.T) {
 	// lookup.rdap re-observes the root domain with its registration data;
-	// a subdomain or an address is not an output of it.
+	// an address is not an output of it.
 	rdap := mustLookup(t, "lookup.rdap@1")
-	dom := ctis.Asset{Type: ctis.AssetTypeDomain, Value: "example.com", Technical: &ctis.AssetTechnical{Domain: &ctis.DomainTechnical{
-		Registrar: "Example Registrar", Nameservers: []string{"a.iana-servers.net"}, WHOIS: map[string]string{"rdap_server": "https://rdap.example/"}}}}
-	if v, err := rdap.Check(&ctis.Report{Assets: []ctis.Asset{dom}}, CheckOptions{}); err != nil || len(v) != 0 {
+	good := doc(t, `{"assets":[{"type":"domain_name","value":"example.com","technical":{"domain":{"registrar":"Example Registrar","whois":{"rdap_server":"https://rdap.example/"}}}}]}`)
+	if v, err := rdap.Check(good, CheckOptions{}); err != nil || len(v) != 0 {
 		t.Fatalf("rdap: %v %v", v, err)
 	}
-	bad := &ctis.Report{Assets: []ctis.Asset{{Type: ctis.AssetTypeDomain, Value: "example.com"}, {Type: ctis.AssetTypeIPAddress, Value: "192.0.2.1"}}}
+	bad := doc(t, `{"assets":[{"type":"domain_name","value":"example.com"},{"type":"ip_address","value":"192.0.2.1"}]}`)
 	v, _ := rdap.Check(bad, CheckOptions{})
 	if len(v) != 2 || v[0].Kind != "not_allowed" || v[1].Path != "technical.domain.whois" {
 		t.Fatalf("rdap bad = %v", v)
 	}
 	// lookup.asn annotates the address and may report announced ranges as
-	// networks, each with its origin system.
+	// ranges, each with its origin system.
 	asn := mustLookup(t, "lookup.asn@1")
-	r := &ctis.Report{Assets: []ctis.Asset{
-		{Type: ctis.AssetTypeIPAddress, Value: "192.0.2.1", Technical: &ctis.AssetTechnical{IPAddress: &ctis.IPAddressTechnical{ASN: 64496, ASNOrg: "EXAMPLE-AS"}}},
-		{Type: ctis.AssetTypeNetwork, Value: "192.0.2.0/24", Properties: ctis.Properties{"asn": 64496}},
-	}}
+	r := doc(t, `{"assets":[
+		{"type":"ip_address","value":"192.0.2.1","technical":{"ip_address":{"asn":64496}}},
+		{"type":"ip_range","value":"192.0.2.0/24","properties":{"asn":64496}}]}`)
 	if v, err := asn.Check(r, CheckOptions{}); err != nil || len(v) != 0 {
 		t.Fatalf("asn: %v %v", v, err)
 	}
-	r.Assets[1].Properties = nil
+	delete(r["assets"].([]any)[1].(map[string]any), "properties")
 	if v, _ := asn.Check(r, CheckOptions{}); len(v) != 1 || v[0].Path != "properties.asn" {
 		t.Fatalf("asn without properties.asn = %v", v)
 	}
@@ -303,14 +286,11 @@ func TestCheckDiscoverHostsOutputs(t *testing.T) {
 	// discover.hosts reports each live address with the probe that answered;
 	// an address without it, or a name, is not an output of it.
 	c := mustLookup(t, "discover.hosts@1")
-	live := ctis.Asset{Type: ctis.AssetTypeIPAddress, Value: "192.0.2.7", Properties: ctis.Properties{"live_by": "tcp:443"}}
-	if v, err := c.Check(&ctis.Report{Assets: []ctis.Asset{live}}, CheckOptions{}); err != nil || len(v) != 0 {
+	live := doc(t, `{"assets":[{"type":"ip_address","value":"192.0.2.7","properties":{"live_by":"tcp:443"}}]}`)
+	if v, err := c.Check(live, CheckOptions{}); err != nil || len(v) != 0 {
 		t.Fatalf("live address: %v %v", v, err)
 	}
-	bad := &ctis.Report{Assets: []ctis.Asset{
-		{Type: ctis.AssetTypeIPAddress, Value: "192.0.2.8"},
-		{Type: ctis.AssetTypeSubdomain, Value: "www.example.com"},
-	}}
+	bad := doc(t, `{"assets":[{"type":"ip_address","value":"192.0.2.8"},{"type":"domain_name","value":"www.example.com"}]}`)
 	v, _ := c.Check(bad, CheckOptions{})
 	if len(v) != 2 || v[0].Kind != "not_allowed" || v[1].Path != "properties.live_by" {
 		t.Fatalf("discover.hosts bad = %v", v)

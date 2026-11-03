@@ -1,11 +1,8 @@
 package capability
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
-
-	"github.com/openctemio/ctis"
 )
 
 // Violation is one way a report misses a capability's contract.
@@ -43,10 +40,13 @@ type CheckOptions struct {
 // capability may not emit, and records that miss a required path. A nil
 // result means the report conforms. The report is not modified.
 //
-// Check is a producer and receiver aid: the runtime uses it before upload
-// and the platform again at ingest. It does not replace ctis.Validate.
-func (c Capability) Check(r *ctis.Report, opts CheckOptions) ([]Violation, error) {
-	if r == nil {
+// The report is a decoded CTIS JSON document (the form a receiver sees),
+// for example the result of json.Unmarshal into a map[string]any. Check is
+// a producer and receiver aid: the runtime uses it before upload and the
+// platform again at ingest. It does not validate the document against the
+// CTIS schema.
+func (c Capability) Check(doc map[string]any, opts CheckOptions) ([]Violation, error) {
+	if doc == nil {
 		return nil, nil
 	}
 	max := opts.MaxViolations
@@ -56,38 +56,28 @@ func (c Capability) Check(r *ctis.Report, opts CheckOptions) ([]Violation, error
 	var out []Violation
 	full := func() bool { return len(out) >= max }
 
-	for i, a := range r.Assets {
-		if full() {
-			return out, nil
-		}
-		if !c.MayEmit("asset:" + string(a.Type)) {
-			out = append(out, Violation{Kind: "not_allowed", Record: fmt.Sprintf("/assets/%d", i), Path: "asset:" + string(a.Type)})
-		}
-	}
-	for i, f := range r.Findings {
-		if full() {
-			return out, nil
-		}
-		if !c.MayEmit("finding:" + string(f.Type)) {
-			out = append(out, Violation{Kind: "not_allowed", Record: fmt.Sprintf("/findings/%d", i), Path: "finding:" + string(f.Type)})
+	typed := func(key, prefix string) {
+		recs, _ := doc[key].([]any)
+		for i, rec := range recs {
+			if full() {
+				return
+			}
+			obj, _ := rec.(map[string]any)
+			t, _ := obj["type"].(string)
+			if !c.MayEmit(prefix + ":" + t) {
+				out = append(out, Violation{Kind: "not_allowed", Record: fmt.Sprintf("/%s/%d", key, i), Path: prefix + ":" + t})
+			}
 		}
 	}
-	if len(r.Dependencies) > 0 && !c.MayEmit("dependency") {
+	typed("assets", "asset")
+	typed("findings", "finding")
+	if deps, _ := doc["dependencies"].([]any); len(deps) > 0 && !c.MayEmit("dependency") && !full() {
 		out = append(out, Violation{Kind: "not_allowed", Record: "/dependencies", Path: "dependency"})
 	}
-	if len(r.Endpoints) > 0 && !c.MayEmit("endpoint") && !full() {
+	if eps, _ := doc["endpoints"].([]any); len(eps) > 0 && !c.MayEmit("endpoint") && !full() {
 		out = append(out, Violation{Kind: "not_allowed", Record: "/endpoints", Path: "endpoint"})
 	}
 
-	// Rules are evaluated on the JSON form, the form a receiver sees.
-	raw, err := json.Marshal(r)
-	if err != nil {
-		return nil, fmt.Errorf("encode report: %w", err)
-	}
-	var doc map[string]any
-	if err := json.Unmarshal(raw, &doc); err != nil {
-		return nil, fmt.Errorf("decode report: %w", err)
-	}
 	for _, rule := range c.Outputs {
 		if opts.Shape != "" && rule.Shape != "" && rule.Shape != opts.Shape {
 			continue

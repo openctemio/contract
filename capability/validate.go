@@ -3,11 +3,8 @@ package capability
 import (
 	"errors"
 	"fmt"
-	"reflect"
 	"regexp"
 	"strings"
-
-	"github.com/openctemio/ctis"
 )
 
 // Identifier formats of the framework references a capability carries.
@@ -23,18 +20,18 @@ var (
 // AssetTypes are the CTIS asset type names this taxonomy may refer to.
 func knownAssetTypes() map[string]bool {
 	out := map[string]bool{}
-	for _, t := range ctis.AllAssetTypes() {
+	for _, t := range AllAssetTypes() {
 		out[string(t)] = true
 	}
 	return out
 }
 
 var knownFindingTypes = map[string]bool{
-	string(ctis.FindingTypeVulnerability):    true,
-	string(ctis.FindingTypeSecret):           true,
-	string(ctis.FindingTypeMisconfiguration): true,
-	string(ctis.FindingTypeCompliance):       true,
-	string(ctis.FindingTypeWeb3):             true,
+	"vulnerability":    true,
+	"secret":           true,
+	"misconfiguration": true,
+	"compliance":       true,
+	"web3":             true,
 }
 
 func (t taxonomy) validate() error {
@@ -223,17 +220,14 @@ func (r Rule) validate(c Capability, ports []PortTypeInfo) error {
 	if len(r.AnyOf) == 1 {
 		return errors.New("any_of with one path is a path")
 	}
-	var root reflect.Type
 	switch m[1] {
 	case "assets":
-		root = reflect.TypeOf(ctis.Asset{})
 		for _, at := range splitTypes(m[2]) {
 			if !c.mayEmit(ports, "asset:"+at) {
 				return fmt.Errorf("select %q: the capability cannot emit asset %q", r.Select, at)
 			}
 		}
 	case "findings":
-		root = reflect.TypeOf(ctis.Finding{})
 		if !containsPort(c.OutPorts, PortFinding) {
 			return fmt.Errorf("select %q: the capability emits no findings", r.Select)
 		}
@@ -243,7 +237,6 @@ func (r Rule) validate(c Capability, ports []PortTypeInfo) error {
 			}
 		}
 	case "endpoints":
-		root = reflect.TypeOf(ctis.Endpoint{})
 		if m[2] != "" {
 			return errors.New("endpoints take no type filter")
 		}
@@ -251,7 +244,6 @@ func (r Rule) validate(c Capability, ports []PortTypeInfo) error {
 			return fmt.Errorf("select %q: the capability emits no endpoints", r.Select)
 		}
 	case "dependencies":
-		root = reflect.TypeOf(ctis.Dependency{})
 		if m[2] != "" {
 			return errors.New("dependencies take no type filter")
 		}
@@ -260,7 +252,7 @@ func (r Rule) validate(c Capability, ports []PortTypeInfo) error {
 		}
 	}
 	for _, p := range append(append([]string{}, r.Paths...), r.AnyOf...) {
-		if err := resolvePath(root, p); err != nil {
+		if err := checkPath(p); err != nil {
 			return fmt.Errorf("path %q: %w", p, err)
 		}
 	}
@@ -274,50 +266,12 @@ func splitTypes(s string) []string {
 	return strings.Split(s, "|")
 }
 
-// resolvePath checks that a rule path names members of the CTIS Go type, by
-// their JSON names. A member of a free-form map (properties, details) may
-// carry any key below it.
-func resolvePath(t reflect.Type, path string) error {
+// checkPath checks that a rule path is well formed. Whether it names a
+// member of the CTIS document is checked by the platform against the CTIS
+// schema, not here: this module has no dependency on the document format.
+func checkPath(path string) error {
 	if !pathRE.MatchString(path) {
 		return errors.New("malformed")
 	}
-	for _, seg := range strings.Split(path, ".") {
-		name, list := strings.CutSuffix(seg, "[]")
-		for t.Kind() == reflect.Pointer {
-			t = t.Elem()
-		}
-		switch t.Kind() {
-		case reflect.Map, reflect.Interface:
-			return nil // free-form below this point
-		case reflect.Struct:
-		default:
-			return fmt.Errorf("%q is below a scalar", name)
-		}
-		f, ok := jsonField(t, name)
-		if !ok {
-			return fmt.Errorf("%s has no member %q", t.Name(), name)
-		}
-		t = f
-		if list {
-			for t.Kind() == reflect.Pointer {
-				t = t.Elem()
-			}
-			if t.Kind() != reflect.Slice {
-				return fmt.Errorf("%q is not a list", name)
-			}
-			t = t.Elem()
-		}
-	}
 	return nil
-}
-
-func jsonField(t reflect.Type, name string) (reflect.Type, bool) {
-	for i := 0; i < t.NumField(); i++ {
-		f := t.Field(i)
-		tag, _, _ := strings.Cut(f.Tag.Get("json"), ",")
-		if tag == name {
-			return f.Type, true
-		}
-	}
-	return nil, false
 }

@@ -2,11 +2,8 @@ package capability
 
 import (
 	"encoding/json"
-	"reflect"
 	"strings"
 	"testing"
-
-	"github.com/openctemio/ctis"
 )
 
 // mutate decodes the embedded taxonomy, applies f and re-encodes it.
@@ -108,15 +105,6 @@ func TestLoadRefusesBadTaxonomies(t *testing.T) {
 		"shape name": {func(m map[string]any) {
 			capAt(m, "sast.code")["outputs"] = []any{map[string]any{"shape": "Bad Shape", "select": "findings", "paths": []any{"title"}}}
 		}, "shape"},
-		"unknown path": {func(m map[string]any) {
-			capAt(m, "sast.code")["outputs"] = []any{map[string]any{"select": "findings", "paths": []any{"location.file"}}}
-		}, "has no member \"file\""},
-		"path not list": {func(m map[string]any) {
-			capAt(m, "sast.code")["outputs"] = []any{map[string]any{"select": "findings", "paths": []any{"title[]"}}}
-		}, "not a list"},
-		"path below scalar": {func(m map[string]any) {
-			capAt(m, "sast.code")["outputs"] = []any{map[string]any{"select": "findings", "paths": []any{"title.x"}}}
-		}, "below a scalar"},
 		"path malformed": {func(m map[string]any) {
 			capAt(m, "sast.code")["outputs"] = []any{map[string]any{"select": "findings", "paths": []any{"../x"}}}
 		}, "malformed"},
@@ -160,11 +148,15 @@ func TestMustLoadPanicsOnInvalidData(t *testing.T) {
 	mustLoad([]byte(`{"version":9}`))
 }
 
-func TestResolvePathFreeForm(t *testing.T) {
-	asset := reflect.TypeOf(ctis.Asset{})
-	for _, p := range []string{"properties.anything.below", "technical.service.details.x", "technical.domain.dns_records[].type"} {
-		if err := resolvePath(asset, p); err != nil {
+func TestCheckPath(t *testing.T) {
+	for _, p := range []string{"properties.anything.below", "technical.service.details.x", "technical.domain.dns_records[].type", "value"} {
+		if err := checkPath(p); err != nil {
 			t.Errorf("%s: %v", p, err)
+		}
+	}
+	for _, p := range []string{"", "A.b", "a..b", "a.", "a[0]"} {
+		if checkPath(p) == nil {
+			t.Errorf("%q accepted", p)
 		}
 	}
 }

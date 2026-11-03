@@ -1,0 +1,81 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27'
+          cache: true
+          cache-dependency-path: transfer/go.sum
+
+      - name: Verify zero external dependencies
+        run: |
+          DEPS=$(go list -m all 2>/dev/null | grep -v "^github.com/openctemio/contract$" | wc -l)
+          if [ "$DEPS" -gt 0 ]; then
+            echo "ERROR: the root module must have zero external dependencies"
+            go list -m all
+            exit 1
+          fi
+
+      - name: Run tests
+        run: |
+          go test -race ./...
+          (cd transfer && go test -race ./...)
+
+      # The tag must be vMAJOR.MINOR.PATCH, its major must match the module
+      # path (v1 has no /vN suffix, v2+ needs /vN), and CHANGELOG.md must
+      # have a section for it.
+      - name: Verify tag against module and changelog
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          if ! [[ "$TAG" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            echo "ERROR: tag $TAG is not vMAJOR.MINOR.PATCH"; exit 1
+          fi
+          MAJOR="${BASH_REMATCH[1]}"; VERSION="${TAG#v}"
+          MODULE="$(go list -m)"
+          if [ "$MAJOR" -ge 2 ]; then WANT="github.com/openctemio/contract/v$MAJOR"; else WANT="github.com/openctemio/contract"; fi
+          if [ "$MODULE" != "$WANT" ]; then
+            echo "ERROR: tag $TAG needs module path $WANT, go.mod has $MODULE"; exit 1
+          fi
+          if ! grep -qE "^## \[$VERSION\]" CHANGELOG.md; then
+            echo "ERROR: CHANGELOG.md has no '## [$VERSION]' section"; exit 1
+          fi
+          echo "Tag $TAG matches $MODULE and CHANGELOG.md"
+
+  release:
+    name: Create release
+    needs: validate
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Extract changelog section
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          awk -v v="$VERSION" '
+            $0 ~ "^## \\[" v "\\]" { on = 1; next }
+            on && /^## \[/ { exit }
+            on { print }
+          ' CHANGELOG.md > section.md
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" --notes-file section.md --verify-tag

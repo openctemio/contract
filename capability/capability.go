@@ -183,7 +183,7 @@ type Capability struct {
 // a valid result).
 //
 // Select is "assets", "findings", "dependencies" or "endpoints" (CTIS
-// 1.6), the first two optionally with a type filter: "assets[type=open_port]", "assets[type=ip_address|host]",
+// 1.6), the first two optionally with a type filter: "assets[type=service]", "assets[type=ip_address|host]",
 // "findings[type=secret]". A path is dotted JSON member names relative to
 // the record; "[]" after a member means the member is a list that must not
 // be empty and the rest of the path applies to every element
@@ -246,7 +246,7 @@ func (c Capability) Accepts(assetType string) bool {
 }
 
 // MayEmit reports whether a report of the capability may carry an output of
-// this kind: "asset:<ctis asset type>", "finding:<ctis finding type>",
+// this kind: "asset:<CTIS asset type>", "finding:<CTIS finding type>",
 // "dependency" or "endpoint". A capability may emit what its output ports
 // carry, what its input ports carry (a tool re-observes its targets), its
 // extra outputs, and findings of an allowed type when it has a finding
