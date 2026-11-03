@@ -216,7 +216,7 @@ func TestPhasesAndCTEMStage(t *testing.T) {
 	if _, ok := ports(t).Param("nope"); ok {
 		t.Error("unknown param")
 	}
-	if got := ports(t).Shapes(); !reflect.DeepEqual(got, []string{"open_port_assets", "ip_ports"}) {
+	if got := ports(t).Shapes(); len(got) != 0 {
 		t.Errorf("shapes = %v", got)
 	}
 }

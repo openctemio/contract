@@ -217,8 +217,7 @@ Port scan: Find open TCP ports (connect scan).
 
 Required output (every selected record):
 
-- shape `open_port_assets`: `assets[type=service]` carries `value`, `technical.service.port`, `technical.service.transport`.
-- shape `ip_ports`: `assets[type=ip_address|host]` carries `value`, `technical.ip_address.ports[].port`.
+- `assets[type=service]` carries `value`, `technical.service.port`, `technical.service.transport`.
 
 ### detect.services@1
 
@@ -276,7 +275,7 @@ TLS check: Check certificates, protocols and ciphers.
 
 Required output (every selected record):
 
-- `assets[type=certificate]` carries `value`, `technical.certificate.fingerprint`, `technical.certificate.not_after`.
+- `assets[type=certificate]` carries `value`, `technical.certificate.sha256_fingerprint`, `technical.certificate.not_after`.
 
 ### capture.screenshot@1
 
