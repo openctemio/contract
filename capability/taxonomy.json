@@ -143,8 +143,7 @@
         {"name": "rate", "type": "integer", "description": "Maximum requests per second.", "min": 1, "max": 100000}
       ],
       "outputs": [
-        {"shape": "open_port_assets", "select": "assets[type=service]", "paths": ["value", "technical.service.port", "technical.service.transport"]},
-        {"shape": "ip_ports", "select": "assets[type=ip_address|host]", "paths": ["value", "technical.ip_address.ports[].port"]}
+        {"select": "assets[type=service]", "paths": ["value", "technical.service.port", "technical.service.transport"]}
       ],
       "attack": ["T1595.001", "T1046"], "d3fend": ["D3-NM"], "capec": ["CAPEC-300"]
     },
@@ -196,7 +195,7 @@
       "extra_outputs": ["asset:certificate"],
       "params": [],
       "outputs": [
-        {"select": "assets[type=certificate]", "paths": ["value", "technical.certificate.fingerprint", "technical.certificate.not_after"]}
+        {"select": "assets[type=certificate]", "paths": ["value", "technical.certificate.sha256_fingerprint", "technical.certificate.not_after"]}
       ],
       "attack": ["T1596.003"], "d3fend": ["D3-CI"]
     },

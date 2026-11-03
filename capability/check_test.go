@@ -41,30 +41,17 @@ func TestCheckConformingOutputs(t *testing.T) {
 	}
 }
 
-func TestCheckScanPortsShapes(t *testing.T) {
+func TestCheckScanPortsOutputs(t *testing.T) {
+	// In CTIS 2.0 an open port is a service asset (host:port/transport).
 	c := mustLookup(t, "scan.ports@1")
-	for name, in := range map[string]string{
-		"service assets": `{"assets":[{"type":"service","value":"192.0.2.1:443/tcp","technical":{"service":{"port":443,"transport":"tcp"}}}]}`,
-		"grouped by ip":  `{"assets":[{"type":"ip_address","value":"192.0.2.1","technical":{"ip_address":{"ports":[{"port":443}]}}}]}`,
-	} {
-		if v, _ := c.Check(doc(t, in), CheckOptions{}); len(v) != 0 {
-			t.Errorf("%s: %v", name, v)
-		}
+	ok := doc(t, `{"assets":[{"type":"service","value":"192.0.2.1:443/tcp","technical":{"service":{"port":443,"transport":"tcp"}}}]}`)
+	if v, err := c.Check(ok, CheckOptions{}); err != nil || len(v) != 0 {
+		t.Fatalf("service asset: %v %v", v, err)
 	}
-	// An IP asset without ports misses the ip_ports shape unless the tool
-	// declared the other shape.
-	r := doc(t, `{"assets":[{"type":"ip_address","value":"192.0.2.1"}]}`)
-	v, _ := c.Check(r, CheckOptions{})
-	if len(v) != 1 || v[0].Path != "technical.ip_address.ports[].port" || v[0].Record != "/assets/0" {
-		t.Fatalf("violations = %v", v)
-	}
-	if v, _ := c.Check(r, CheckOptions{Shape: "open_port_assets"}); len(v) != 0 {
-		t.Fatalf("shape-filtered = %v", v)
-	}
-	// An empty ports list is missing, not present.
-	r = doc(t, `{"assets":[{"type":"ip_address","value":"192.0.2.1","technical":{"ip_address":{"ports":[]}}}]}`)
-	if v, _ := c.Check(r, CheckOptions{}); len(v) != 1 {
-		t.Fatalf("empty list = %v", v)
+	bad := doc(t, `{"assets":[{"type":"service","value":"192.0.2.1:443/tcp"}]}`)
+	v, _ := c.Check(bad, CheckOptions{})
+	if len(v) != 2 || v[0].Path != "technical.service.port" || v[1].Path != "technical.service.transport" || v[0].Record != "/assets/0" {
+		t.Fatalf("service without port = %v", v)
 	}
 }
 

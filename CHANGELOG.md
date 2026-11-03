@@ -4,6 +4,13 @@ All notable changes to this module. The format follows [Keep a Changelog](https:
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-11-03
+
+### Fixed: two output rules still named 1.x members
+
+- `scan.ports`: one rule, service assets with `technical.service.port` and `technical.service.transport`. The `ip_ports` shape (ports grouped under `technical.ip_address.ports[]`) is removed, since CTIS 2.0 has no such member; the remaining rule has no shape name.
+- `check.tls`: `technical.certificate.sha256_fingerprint` (was `fingerprint`).
+
 ## [1.1.0] - 2026-11-03
 
 ### Changed: capability output rules name CTIS 2.0 members
