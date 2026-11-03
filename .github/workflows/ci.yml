@@ -43,15 +43,19 @@ jobs:
       - name: Run tests
         run: go test -race ./...
 
-  # The nested module needs a newer Go than the root module.
+  # The nested module needs a newer Go than the root module (its
+  # dependencies need 1.26); it is tested on that minimum and the newest.
   test-transfer:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: ['1.26', '1.27']
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.27'
+          go-version: ${{ matrix.go-version }}
           cache: true
           cache-dependency-path: transfer/go.sum
 
@@ -69,6 +73,9 @@ jobs:
 
       - name: Actions are pinned to commit SHAs
         run: bash .github/scripts/check-action-pins.sh
+
+      - name: go directives are minimal and not newer than the consumers' Go
+        run: bash .github/scripts/check-go-directive.sh
 
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:

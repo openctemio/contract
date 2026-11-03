@@ -4,6 +4,12 @@ All notable changes to this module. The format follows [Keep a Changelog](https:
 
 ## [Unreleased]
 
+## [transfer 1.0.1] - 2026-11-03
+
+### Fixed: go directive of the transfer module
+
+- `github.com/openctemio/contract/transfer` declares `go 1.26.0`, the minimum its dependencies need (1.0.0 declared 1.27.0, which forced consumers on Go 1.26 to upgrade). CI tests it on Go 1.26 and 1.27 and refuses a `go` directive newer than the consumers' Go.
+
 ## [1.0.0] - 2026-11-03
 
 First release. The packages moved out of the CTIS repository, with their history, when CTIS became a pure document format.
