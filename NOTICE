@@ -1,5 +1,10 @@
-CTIS - CTEM Ingest Schema
+CTIS - CTEM Interchange Schema
 Copyright 2026 The OpenCTEM Authors
 
 This product includes software developed by the OpenCTEM project
 (https://github.com/openctemio).
+
+The specification text and other prose in docs/ and proposals/ are licensed
+under the Creative Commons Attribution 4.0 International license (LICENSE-docs).
+Schemas, examples, conformance vectors and code are licensed under the Apache
+License, Version 2.0 (LICENSE). Patent commitment: PATENTS.md.
