@@ -86,7 +86,7 @@ Subdomain discovery: Find subdomains of a root domain from passive sources.
 
 Required output (every selected record):
 
-- `assets[type=domain_name]` carries `value`, `properties.root_domain`.
+- `assets[type=domain_name]` carries `value`.
 
 ### enumerate.subdomains@1
 
@@ -118,7 +118,7 @@ Web content monitoring: Fetch listed URLs and report the response (status, type,
 
 Required output (every selected record):
 
-- `assets[type=web_origin]` carries `value`, `properties.web_content`.
+- `assets[type=web_origin]` carries `value`, `extensions`.
 
 ### intel.passive@1
 
@@ -130,7 +130,7 @@ Passive intelligence: Names, ranges and addresses from certificate transparency 
 
 Required output (every selected record):
 
-- `assets` carries `value`, `properties.source`.
+- `assets` carries `value`, `source_refs`.
 
 ### resolve.dns@1
 
@@ -181,7 +181,7 @@ Network ownership lookup: Origin autonomous system, its holder and the announced
 Required output (every selected record):
 
 - `assets[type=ip_address]` carries `value`, `technical.ip_address.asn`.
-- `assets[type=ip_range]` carries `value`, `properties.asn`.
+- `assets[type=ip_range]` carries `value`, `technical.ip_address.asn`.
 
 ### discover.hosts@1
 
@@ -198,7 +198,7 @@ Host discovery: Find the live addresses of a range or an address list with light
 
 Required output (every selected record):
 
-- `assets[type=ip_address]` carries `value`, `properties.live_by`.
+- `assets[type=ip_address]` carries `value`, `last_seen_at`.
 
 ### scan.ports@1
 
@@ -217,7 +217,7 @@ Port scan: Find open TCP ports (connect scan).
 
 Required output (every selected record):
 
-- shape `open_port_assets`: `assets[type=service]` carries `value`, `properties.host`, `properties.port`, `properties.protocol`.
+- shape `open_port_assets`: `assets[type=service]` carries `value`, `technical.service.port`, `technical.service.transport`.
 - shape `ip_ports`: `assets[type=ip_address|host]` carries `value`, `technical.ip_address.ports[].port`.
 
 ### detect.services@1
@@ -230,7 +230,7 @@ Service detection: Identify the service, product and version behind an open port
 
 Required output (every selected record):
 
-- `assets[type=service]` carries `value` and at least one of `technical.service.name`, `properties.service`.
+- `assets[type=service]` carries `value` and at least one of `technical.service.app_protocol`, `technical.service.product`.
 
 ### probe.http@1
 
@@ -251,7 +251,7 @@ HTTP probe: Probe web services: status, title, technologies, TLS certificate.
 
 Required output (every selected record):
 
-- `assets[type=web_origin]` carries `value`, `properties.status_code`.
+- `assets[type=web_origin]` carries `value`, `technical.http.status_code`.
 
 ### fingerprint.tech@1
 
@@ -263,7 +263,7 @@ Technology fingerprint: Identify the technologies a web service or service runs.
 
 Required output (every selected record):
 
-- `assets[type=web_origin|service]` carries `value`, `properties.technologies`.
+- `assets[type=web_origin|service]` carries `value`, `technologies`.
 
 ### check.tls@1
 
@@ -288,7 +288,7 @@ Screenshot: Capture a screenshot of a web page.
 
 Required output (every selected record):
 
-- `assets[type=web_origin|web_application]` carries `value`, `properties.screenshot`.
+- `assets[type=web_origin|web_application]` carries `value`.
 
 ### crawl.web@1
 
@@ -354,7 +354,7 @@ Vulnerability templates: Run non-intrusive vulnerability templates.
 
 Required output (every selected record):
 
-- `findings` carries `rule_id`, `severity`, `title` and at least one of `network.host`, `asset_ref`, `asset_value`, `location.path`, `web.url`.
+- `findings` carries `rule_id`, `severity`, `title` and at least one of `network.host`, `asset_ref`, `location.path`, `web.url`.
 
 ### dast.web@1
 
@@ -371,7 +371,7 @@ Web application scan: Dynamic application security testing of a web application,
 
 Required output (every selected record):
 
-- `findings` carries `rule_id`, `severity`, `title` and at least one of `network.host`, `asset_ref`, `asset_value`, `web.url`.
+- `findings` carries `rule_id`, `severity`, `title` and at least one of `network.host`, `asset_ref`, `web.url`.
 
 ### sast.code@1
 
@@ -423,7 +423,7 @@ Dependency scan: Find vulnerable dependencies and build a component inventory.
 Required output (every selected record):
 
 - `dependencies` carries `name`, `version`.
-- `findings` carries `severity`, `title` and at least one of `vulnerability.cve_id`, `vulnerability.ids`, `rule_id`.
+- `findings` carries `severity`, `title` and at least one of `vulnerability.ids`, `rule_id`.
 
 ### sbom.generate@1
 
@@ -474,7 +474,7 @@ Container image scan: Find vulnerabilities in a container image.
 
 Required output (every selected record):
 
-- `findings` carries `severity`, `title` and at least one of `vulnerability.cve_id`, `vulnerability.ids`, `rule_id`.
+- `findings` carries `severity`, `title` and at least one of `vulnerability.ids`, `rule_id`.
 
 ### cloud.posture@1
 
@@ -512,7 +512,7 @@ Credentialed host scan: Authenticated vulnerability scan of a host.
 
 Required output (every selected record):
 
-- `findings` carries `severity`, `title` and at least one of `rule_id`, `vulnerability.cve_id`.
+- `findings` carries `severity`, `title` and at least one of `rule_id`, `vulnerability.ids`.
 
 ### network_va.connector@1
 
@@ -528,7 +528,7 @@ Network vulnerability assessment (connector): Run a network vulnerability scan t
 
 Required output (every selected record):
 
-- `findings` carries `rule_id`, `severity`, `title` and at least one of `network.host`, `asset_ref`, `asset_value`.
+- `findings` carries `rule_id`, `severity`, `title` and at least one of `network.host`, `asset_ref`.
 
 ### verify.finding@1
 
@@ -552,7 +552,7 @@ Subdomain takeover check: Find names whose alias points at an unclaimed third-pa
 
 Required output (every selected record):
 
-- `findings` carries `rule_id`, `severity`, `title`, `evidence` and at least one of `network.host`, `asset_value`, `asset_ref`.
+- `findings` carries `rule_id`, `severity`, `title`, `evidence_items` and at least one of `network.host`, `asset_ref`.
 
 ### check.credentials@1
 

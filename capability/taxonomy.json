@@ -32,7 +32,7 @@
         {"name": "max_results", "type": "integer", "description": "Stop after this many names per root domain.", "min": 1, "max": 5000}
       ],
       "outputs": [
-        {"select": "assets[type=domain_name]", "paths": ["value", "properties.root_domain"]}
+        {"select": "assets[type=domain_name]", "paths": ["value"]}
       ],
       "attack": ["T1596.001", "T1590.002", "T1593.002"], "d3fend": ["D3-AI"], "capec": ["CAPEC-169"]
     },
@@ -60,7 +60,7 @@
       "extra_outputs": ["asset:web_origin"],
       "params": [],
       "outputs": [
-        {"select": "assets[type=web_origin]", "paths": ["value", "properties.web_content"]}
+        {"select": "assets[type=web_origin]", "paths": ["value", "extensions"]}
       ],
       "attack": ["T1594"]
     },
@@ -71,7 +71,7 @@
       "in_ports": ["root_domain", "ip", "cidr"], "out_ports": ["hostname", "cidr", "ip"],
       "params": [],
       "outputs": [
-        {"select": "assets", "paths": ["value", "properties.source"]}
+        {"select": "assets", "paths": ["value", "source_refs"]}
       ],
       "attack": ["T1596.002", "T1596.003", "T1596.005"], "d3fend": ["D3-AI", "D3-NM"], "capec": ["CAPEC-169"]
     },
@@ -113,7 +113,7 @@
       ],
       "outputs": [
         {"select": "assets[type=ip_address]", "paths": ["value", "technical.ip_address.asn"]},
-        {"select": "assets[type=ip_range]", "paths": ["value", "properties.asn"]}
+        {"select": "assets[type=ip_range]", "paths": ["value", "technical.ip_address.asn"]}
       ],
       "attack": ["T1590.005", "T1596.002"], "d3fend": ["D3-AI", "D3-NM"], "capec": ["CAPEC-169"]
     },
@@ -127,7 +127,7 @@
         {"name": "rate", "type": "integer", "description": "Maximum probes per second.", "min": 1, "max": 100000}
       ],
       "outputs": [
-        {"select": "assets[type=ip_address]", "paths": ["value", "properties.live_by"]}
+        {"select": "assets[type=ip_address]", "paths": ["value", "last_seen_at"]}
       ],
       "attack": ["T1595.001", "T1018"], "d3fend": ["D3-NM"], "capec": ["CAPEC-292"]
     },
@@ -143,7 +143,7 @@
         {"name": "rate", "type": "integer", "description": "Maximum requests per second.", "min": 1, "max": 100000}
       ],
       "outputs": [
-        {"shape": "open_port_assets", "select": "assets[type=service]", "paths": ["value", "properties.host", "properties.port", "properties.protocol"]},
+        {"shape": "open_port_assets", "select": "assets[type=service]", "paths": ["value", "technical.service.port", "technical.service.transport"]},
         {"shape": "ip_ports", "select": "assets[type=ip_address|host]", "paths": ["value", "technical.ip_address.ports[].port"]}
       ],
       "attack": ["T1595.001", "T1046"], "d3fend": ["D3-NM"], "capec": ["CAPEC-300"]
@@ -155,7 +155,7 @@
       "in_ports": ["service"], "out_ports": ["service"],
       "params": [],
       "outputs": [
-        {"select": "assets[type=service]", "paths": ["value"], "any_of": ["technical.service.name", "properties.service"]}
+        {"select": "assets[type=service]", "paths": ["value"], "any_of": ["technical.service.app_protocol", "technical.service.product"]}
       ],
       "attack": ["T1595.001", "T1592.002"], "d3fend": ["D3-SWI"], "capec": ["CAPEC-541"]
     },
@@ -173,7 +173,7 @@
         {"name": "api_schema", "type": "boolean", "description": "Fetch API schema documents (OpenAPI, GraphQL introspection) at well-known paths and report their operations as endpoints."}
       ],
       "outputs": [
-        {"select": "assets[type=web_origin]", "paths": ["value", "properties.status_code"]}
+        {"select": "assets[type=web_origin]", "paths": ["value", "technical.http.status_code"]}
       ],
       "attack": ["T1595", "T1594"], "d3fend": ["D3-AI"], "capec": ["CAPEC-541"]
     },
@@ -184,7 +184,7 @@
       "in_ports": ["url", "service"], "out_ports": ["url", "service"],
       "params": [],
       "outputs": [
-        {"select": "assets[type=web_origin|service]", "paths": ["value", "properties.technologies"]}
+        {"select": "assets[type=web_origin|service]", "paths": ["value", "technologies"]}
       ],
       "attack": ["T1592.002"], "d3fend": ["D3-SWI"], "capec": ["CAPEC-541"]
     },
@@ -207,7 +207,7 @@
       "in_ports": ["url"], "out_ports": ["url"],
       "params": [],
       "outputs": [
-        {"select": "assets[type=web_origin|web_application]", "paths": ["value", "properties.screenshot"]}
+        {"select": "assets[type=web_origin|web_application]", "paths": ["value"]}
       ],
       "attack": ["T1594"]
     },
@@ -263,7 +263,7 @@
         {"name": "rate", "type": "integer", "description": "Maximum requests per second.", "min": 1, "max": 100000}
       ],
       "outputs": [
-        {"select": "findings", "paths": ["rule_id", "severity", "title"], "any_of": ["network.host", "asset_ref", "asset_value", "location.path", "web.url"]}
+        {"select": "findings", "paths": ["rule_id", "severity", "title"], "any_of": ["network.host", "asset_ref", "location.path", "web.url"]}
       ],
       "attack": ["T1595.002", "T1190"], "d3fend": ["D3-AVE", "D3-NVA"]
     },
@@ -277,7 +277,7 @@
         {"name": "max_duration_minutes", "type": "integer", "description": "Stop the scan after this many minutes.", "min": 1, "max": 1440}
       ],
       "outputs": [
-        {"select": "findings", "paths": ["rule_id", "severity", "title"], "any_of": ["network.host", "asset_ref", "asset_value", "web.url"]}
+        {"select": "findings", "paths": ["rule_id", "severity", "title"], "any_of": ["network.host", "asset_ref", "web.url"]}
       ],
       "attack": ["T1595.002", "T1190"], "d3fend": ["D3-AVE"]
     },
@@ -320,7 +320,7 @@
       ],
       "outputs": [
         {"select": "dependencies", "paths": ["name", "version"]},
-        {"select": "findings", "paths": ["severity", "title"], "any_of": ["vulnerability.cve_id", "vulnerability.ids", "rule_id"]}
+        {"select": "findings", "paths": ["severity", "title"], "any_of": ["vulnerability.ids", "rule_id"]}
       ],
       "attack": ["T1195.001"], "d3fend": ["D3-SWI", "D3-AVE"]
     },
@@ -362,7 +362,7 @@
         {"name": "os_pkgs", "type": "boolean", "description": "Include operating-system packages."}
       ],
       "outputs": [
-        {"select": "findings", "paths": ["severity", "title"], "any_of": ["vulnerability.cve_id", "vulnerability.ids", "rule_id"]}
+        {"select": "findings", "paths": ["severity", "title"], "any_of": ["vulnerability.ids", "rule_id"]}
       ],
       "attack": ["T1195.002"], "d3fend": ["D3-AVE"]
     },
@@ -397,7 +397,7 @@
       "in_ports": ["ip", "hostname"], "out_ports": ["finding"],
       "params": [],
       "outputs": [
-        {"select": "findings", "paths": ["severity", "title"], "any_of": ["rule_id", "vulnerability.cve_id"]}
+        {"select": "findings", "paths": ["severity", "title"], "any_of": ["rule_id", "vulnerability.ids"]}
       ],
       "attack": ["T1078"], "d3fend": ["D3-AVE"]
     },
@@ -410,7 +410,7 @@
         {"name": "policy", "type": "string", "description": "Scan policy name in the connected product."}
       ],
       "outputs": [
-        {"select": "findings", "paths": ["rule_id", "severity", "title"], "any_of": ["network.host", "asset_ref", "asset_value"]}
+        {"select": "findings", "paths": ["rule_id", "severity", "title"], "any_of": ["network.host", "asset_ref"]}
       ],
       "attack": ["T1595.002"], "d3fend": ["D3-NVA"]
     },
@@ -432,7 +432,7 @@
       "in_ports": ["hostname"], "out_ports": ["finding"],
       "params": [],
       "outputs": [
-        {"select": "findings", "paths": ["rule_id", "severity", "title", "evidence"], "any_of": ["network.host", "asset_value", "asset_ref"]}
+        {"select": "findings", "paths": ["rule_id", "severity", "title", "evidence_items"], "any_of": ["network.host", "asset_ref"]}
       ],
       "attack": ["T1584.001"], "d3fend": ["D3-CI"]
     },

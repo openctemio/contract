@@ -28,9 +28,9 @@ func doc(t *testing.T, s string) map[string]any {
 
 func TestCheckConformingOutputs(t *testing.T) {
 	cases := map[string]string{
-		"discover.subdomains@1": `{"assets":[{"type":"domain_name","value":"a.example.com","properties":{"root_domain":"example.com"}}]}`,
+		"discover.subdomains@1": `{"assets":[{"type":"domain_name","value":"a.example.com"}]}`,
 		"resolve.dns@1":         `{"assets":[{"type":"domain_name","value":"a.example.com","technical":{"domain":{"dns_records":[{"type":"A","value":"192.0.2.1"}]}}}]}`,
-		"probe.http@1":          `{"assets":[{"type":"web_origin","value":"https://a.example.com","properties":{"status_code":200}}]}`,
+		"probe.http@1":          `{"assets":[{"type":"web_origin","value":"https://a.example.com","technical":{"http":{"status_code":200}}}]}`,
 		"crawl.web@1":           `{"endpoints":[{"origin":"https://a.example.com","path":"/login"}]}`,
 	}
 	for ref, in := range cases {
@@ -44,7 +44,7 @@ func TestCheckConformingOutputs(t *testing.T) {
 func TestCheckScanPortsShapes(t *testing.T) {
 	c := mustLookup(t, "scan.ports@1")
 	for name, in := range map[string]string{
-		"service assets": `{"assets":[{"type":"service","value":"192.0.2.1:443","properties":{"host":"192.0.2.1","port":443,"protocol":"tcp"}}]}`,
+		"service assets": `{"assets":[{"type":"service","value":"192.0.2.1:443/tcp","technical":{"service":{"port":443,"transport":"tcp"}}}]}`,
 		"grouped by ip":  `{"assets":[{"type":"ip_address","value":"192.0.2.1","technical":{"ip_address":{"ports":[{"port":443}]}}}]}`,
 	} {
 		if v, _ := c.Check(doc(t, in), CheckOptions{}); len(v) != 0 {
@@ -269,13 +269,13 @@ func TestCheckLookupOutputs(t *testing.T) {
 	asn := mustLookup(t, "lookup.asn@1")
 	r := doc(t, `{"assets":[
 		{"type":"ip_address","value":"192.0.2.1","technical":{"ip_address":{"asn":64496}}},
-		{"type":"ip_range","value":"192.0.2.0/24","properties":{"asn":64496}}]}`)
+		{"type":"ip_range","value":"192.0.2.0/24","technical":{"ip_address":{"asn":64496}}}]}`)
 	if v, err := asn.Check(r, CheckOptions{}); err != nil || len(v) != 0 {
 		t.Fatalf("asn: %v %v", v, err)
 	}
-	delete(r["assets"].([]any)[1].(map[string]any), "properties")
-	if v, _ := asn.Check(r, CheckOptions{}); len(v) != 1 || v[0].Path != "properties.asn" {
-		t.Fatalf("asn without properties.asn = %v", v)
+	delete(r["assets"].([]any)[1].(map[string]any), "technical")
+	if v, _ := asn.Check(r, CheckOptions{}); len(v) != 1 || v[0].Path != "technical.ip_address.asn" {
+		t.Fatalf("range without technical.ip_address.asn = %v", v)
 	}
 	if c, _ := Lookup("lookup.asn@1"); c.TierFloor != 0 || c.Phase != "discover.passive" || !c.Runnable() {
 		t.Fatalf("asn = %+v", c)
@@ -283,16 +283,16 @@ func TestCheckLookupOutputs(t *testing.T) {
 }
 
 func TestCheckDiscoverHostsOutputs(t *testing.T) {
-	// discover.hosts reports each live address with the probe that answered;
-	// an address without it, or a name, is not an output of it.
+	// discover.hosts reports each live address with when it answered
+	// (last_seen_at); an address without it, or a name, is not an output of it.
 	c := mustLookup(t, "discover.hosts@1")
-	live := doc(t, `{"assets":[{"type":"ip_address","value":"192.0.2.7","properties":{"live_by":"tcp:443"}}]}`)
+	live := doc(t, `{"assets":[{"type":"ip_address","value":"192.0.2.7","last_seen_at":"2026-11-03T00:00:00Z"}]}`)
 	if v, err := c.Check(live, CheckOptions{}); err != nil || len(v) != 0 {
 		t.Fatalf("live address: %v %v", v, err)
 	}
 	bad := doc(t, `{"assets":[{"type":"ip_address","value":"192.0.2.8"},{"type":"domain_name","value":"www.example.com"}]}`)
 	v, _ := c.Check(bad, CheckOptions{})
-	if len(v) != 2 || v[0].Kind != "not_allowed" || v[1].Path != "properties.live_by" {
+	if len(v) != 2 || v[0].Kind != "not_allowed" || v[1].Path != "last_seen_at" {
 		t.Fatalf("discover.hosts bad = %v", v)
 	}
 	if c.TierFloor != 1 || c.Phase != "discover.active" || !c.Runnable() ||

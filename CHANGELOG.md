@@ -4,6 +4,22 @@ All notable changes to this module. The format follows [Keep a Changelog](https:
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-03
+
+### Changed: capability output rules name CTIS 2.0 members
+
+The output rules no longer require opaque `properties` keys (CTIS 2.0 gives `properties` no meaning) or removed 1.x members:
+
+- `discover.subdomains`: `value` (the root domain is derived by the receiver).
+- `monitor.web_content`: `extensions` (the captures are `extensions["io.openctem"].web_content`).
+- `intel.passive`: `source_refs` instead of `properties.source`.
+- `lookup.asn` ranges: `technical.ip_address.asn`.
+- `discover.hosts`: `last_seen_at` instead of `properties.live_by`.
+- `scan.ports` shape `open_port_assets`: `technical.service.port` and `technical.service.transport` (the host is in the service value `host:port/transport`).
+- service detection: `technical.service.app_protocol` or `technical.service.product`.
+- `probe.http`: `technical.http.status_code`; technology detection: `technologies`; `capture.screenshot` (planned): `value`.
+- Findings: `asset_value` and `vulnerability.cve_id` removed from the rules (`asset_ref` is required in 2.0; `vulnerability.ids`); `evidence` is `evidence_items`.
+
 ## [transfer 1.0.1] - 2026-11-03
 
 ### Fixed: go directive of the transfer module
