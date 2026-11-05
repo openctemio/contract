@@ -4,6 +4,8 @@ All notable changes to this module. The format follows [Keep a Changelog](https:
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-05
+
 ### Added: web path discovery capabilities
 
 - `enumerate.web_paths@1` (routed, tier 1, phase `discover.active`): request platform-supplied candidate paths on a web origin with GET or HEAD only and report the ones that answer differently from the origin's calibrated not-found response, as endpoints with status, content type, size and a body hash (never the body). Params: `lists` (`derived`, `s`, `m`, `l`), `extensions` (`auto`, `none`, `backup`), `max_requests_per_origin` (50-100000), `rate` (1-50 requests per second), `exclude_paths`. There is no recursion param: the platform plans each level.
