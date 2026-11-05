@@ -53,6 +53,34 @@
       "attack": ["T1590.002", "T1595.003"], "d3fend": ["D3-NM"], "capec": ["CAPEC-309"]
     },
     {
+      "id": "enumerate.web_paths", "major": 1, "status": "routed",
+      "name": "Web path discovery", "description": "Request candidate paths on a web origin with GET or HEAD only, and report the ones that answer differently from the origin's calibrated not-found response. The platform supplies the candidates; the tool never adds paths, never follows redirects and never sends a body. Reports endpoints with status, content type, size and a body hash, never the body.",
+      "phase": "discover.active", "tier_floor": 1,
+      "in_ports": ["url"], "out_ports": ["endpoint"],
+      "params": [
+        {"name": "lists", "type": "string_list", "description": "Candidate lists the platform supplies: derived (built from the tenant's own inventory) and the size classes of the path wordlist.", "enum": ["derived", "s", "m", "l"]},
+        {"name": "extensions", "type": "string", "description": "File extensions added to candidate names: chosen from the origin's technologies, none, or backup extensions only.", "enum": ["auto", "none", "backup"]},
+        {"name": "max_requests_per_origin", "type": "integer", "description": "Send at most this many requests to one origin, calibration included.", "min": 50, "max": 100000},
+        {"name": "rate", "type": "integer", "description": "Requests per second to one origin, at most.", "min": 1, "max": 50},
+        {"name": "exclude_paths", "type": "string_list", "description": "Paths never requested, with every path under them."}
+      ],
+      "outputs": [
+        {"select": "endpoints", "paths": ["origin", "path", "status_code"]}
+      ],
+      "attack": ["T1595.003"], "d3fend": ["D3-AI"], "capec": ["CAPEC-87"]
+    },
+    {
+      "id": "enumerate.web_params", "major": 1, "status": "later",
+      "name": "Web parameter discovery", "description": "Request known endpoints with candidate query parameter names carrying random alphanumeric values, and report the names that change or are reflected in the response. Reserved: the contract may change before the first implementation.",
+      "phase": "discover.active", "tier_floor": 2,
+      "in_ports": ["endpoint"], "out_ports": ["endpoint"],
+      "params": [],
+      "outputs": [
+        {"select": "endpoints", "paths": ["origin", "path", "params[].name"]}
+      ],
+      "attack": ["T1595.003"], "d3fend": ["D3-AI"]
+    },
+    {
       "id": "monitor.web_content", "major": 1, "status": "routed",
       "name": "Web content monitoring", "description": "Fetch listed URLs and report the response (status, type, size, SHA-256 and a capped body) so the platform can detect page and script changes. Nothing is executed.",
       "phase": "discover.active", "tier_floor": 1,

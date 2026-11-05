@@ -36,6 +36,8 @@ A capability is an act a scan tool performs. The capability carries the phase, t
 |---|---|---|---|---|---|---|---|
 | [`discover.subdomains@1`](#discoversubdomains1) | routed | discover.passive | T0 | `root_domain` | `hostname` | T1596.001, T1590.002, T1593.002 | D3-AI |
 | [`enumerate.subdomains@1`](#enumeratesubdomains1) | routed | discover.active | T1 | `root_domain` | `hostname` | T1590.002, T1595.003 | D3-NM |
+| [`enumerate.web_paths@1`](#enumerateweb_paths1) | routed | discover.active | T1 | `url` | `endpoint` | T1595.003 | D3-AI |
+| [`enumerate.web_params@1`](#enumerateweb_params1) | later | discover.active | T2 | `endpoint` | `endpoint` | T1595.003 | D3-AI |
 | [`monitor.web_content@1`](#monitorweb_content1) | routed | discover.active | T1 | `url` | none | T1594 | - |
 | [`intel.passive@1`](#intelpassive1) | planned | discover.passive | T0 | `root_domain`, `ip`, `cidr` | `hostname`, `cidr`, `ip` | T1596.002, T1596.003, T1596.005 | D3-AI, D3-NM |
 | [`resolve.dns@1`](#resolvedns1) | routed | discover.passive | T0 | `hostname` | `hostname`, `ip` | T1590.002 | D3-NM |
@@ -106,6 +108,38 @@ Subdomain enumeration: Find subdomains of a root domain by actively querying DNS
 Required output (every selected record):
 
 - `assets[type=domain_name]` carries `value`.
+
+### enumerate.web_paths@1
+
+Web path discovery: Request candidate paths on a web origin with GET or HEAD only, and report the ones that answer differently from the origin's calibrated not-found response. The platform supplies the candidates; the tool never adds paths, never follows redirects and never sends a body. Reports endpoints with status, content type, size and a body hash, never the body.
+
+- Status: routed; phase `discover.active` (CTEM discovery); tier floor T1.
+- Ports: in `url`, out `endpoint`.
+- References: ATT&CK T1595.003; D3FEND D3-AI; CAPEC-87.
+
+| Param | Type | Values | Description |
+|---|---|---|---|
+| `lists` | string_list | `derived`, `s`, `m`, `l` | Candidate lists the platform supplies: derived (built from the tenant's own inventory) and the size classes of the path wordlist. |
+| `extensions` | string | `auto`, `none`, `backup` | File extensions added to candidate names: chosen from the origin's technologies, none, or backup extensions only. |
+| `max_requests_per_origin` | integer | 50..100000 | Send at most this many requests to one origin, calibration included. |
+| `rate` | integer | 1..50 | Requests per second to one origin, at most. |
+| `exclude_paths` | string_list |  | Paths never requested, with every path under them. |
+
+Required output (every selected record):
+
+- `endpoints` carries `origin`, `path`, `status_code`.
+
+### enumerate.web_params@1
+
+Web parameter discovery: Request known endpoints with candidate query parameter names carrying random alphanumeric values, and report the names that change or are reflected in the response. Reserved: the contract may change before the first implementation.
+
+- Status: later; phase `discover.active` (CTEM discovery); tier floor T2.
+- Ports: in `endpoint`, out `endpoint`.
+- References: ATT&CK T1595.003; D3FEND D3-AI.
+
+Required output (every selected record):
+
+- `endpoints` carries `origin`, `path`, `params[].name`.
 
 ### monitor.web_content@1
 
