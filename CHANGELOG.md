@@ -4,6 +4,16 @@ All notable changes to this module. The format follows [Keep a Changelog](https:
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-11-05
+
+### Security: webpath deny paths hold for every spelling a server reads
+
+- `Denied` reads a deny path both as written and percent-decoded: an exclusion stored as `/files/My%20Docs` now denies `/files/My Docs/a.bak` (before, an escaped deny path never matched, since requests are compared decoded).
+- `Denied` reads a `*` segment of a deny path as any one segment, as the platform's path exclusions do: `/tenants/*/admin` denies `/tenants/acme/admin/x` (before, `*` was compared literally).
+- Paths are compared case-folded to ASCII (U+017F is `s`, U+212A is `k`), with trailing dots and spaces of each segment dropped (`/admin./x` is `/admin/x`), and `Readings` adds the path a server that decodes twice sees (`/%252e%252e/admin`). `Under` must hold for that reading too.
+- `CleanDeny`: the stored form of a deny path (decoded and cleaned like a request path; dot segments and encoded separators refused).
+- `CheckCandidate`: a guessed candidate path may hold no `%25` and no byte outside ASCII, raw or decoded.
+
 ## [1.3.0] - 2026-11-05
 
 ### Added: package webpath, the one reading of a web request path
