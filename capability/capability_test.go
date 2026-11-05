@@ -69,7 +69,7 @@ func TestCaptureScreenshot(t *testing.T) {
 			t.Errorf("param %s %s", p.Name, p.Type)
 			continue
 		}
-		if w[1] != nil && (p.Min == nil || p.Max == nil || int(*p.Min) != w[1].(int) || int(*p.Max) != w[2].(int)) {
+		if w[1] != nil && (p.Min == nil || p.Max == nil || *p.Min != w[1].(int) || *p.Max != w[2].(int)) {
 			t.Errorf("param %s bounds %v..%v", p.Name, p.Min, p.Max)
 		}
 	}
