@@ -4,6 +4,15 @@ All notable changes to this module. The format follows [Keep a Changelog](https:
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-05
+
+### Added: package secretref, the contract of task secrets
+
+- `Set` and `Ref`: the secret refs a signed job carries in its payload member `secrets` (names only, never values), each with a kind, a class (`provider` or `target`, by what the value opens), the tool slot it fills, its audience (where the value may be sent), its consumer (the tool or the egress forwarder) and its local policy (`allow`, `never`, `only`). At most 64 refs.
+- Kinds `provider_key` (a third-party source key; class provider, audience the provider's registry hosts) and `egress_proxy` (the job's proxy pool credentials; forwarder only, never local). Target kinds use the same shape: a target credential fills a slot and goes to the task's targets only.
+- The fetch: `FetchRequest` (lease epoch, refs, single-use reply key, inside the signed body), `SealedAnswer` (HPKE suite 1, key id, sealed bytes), `Info` (the HPKE info binding sensor, command, epoch and request body), `Answer` and `Answer.Check` (the sensor's check of an opened answer).
+- The provider registry (`providers.json`): every provider's key format, the hosts a tool sends its key to, and for keys that name their endpoint, the anchored host rule. `Provider.ValidateKey` is the one key validator of the platform and the sensor; `Provider.Audience` gives the hosts a key may reach. Errors never repeat a key.
+
 ## [1.1.1] - 2026-11-03
 
 ### Fixed: two output rules still named 1.x members
