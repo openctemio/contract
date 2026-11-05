@@ -4,6 +4,10 @@ All notable changes to this module. The format follows [Keep a Changelog](https:
 
 ## [Unreleased]
 
+### Changed: service detection is routed
+
+- `detect.services@1` goes from planned to routed (tier 1, phase `discover.active`, still major 1). Credential-free handshakes on known open ports only: the server's first bytes, protocol greetings and a TLS handshake, never a login, bind or state-changing command, never a range. Params: `ports` (port_list filter), `transports` (`tcp`, `udp`; tcp when unset, udp is opt-in), `depth` (`fast`, `thorough`; fast when unset), `rate` (1-1000 services per second), `timeout_ms` (100-10000). Outputs unchanged: a `service` asset with `value` and an application protocol or a product.
+
 ## [1.3.1] - 2026-11-05
 
 ### Security: webpath deny paths hold for every spelling a server reads

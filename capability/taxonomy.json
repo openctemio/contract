@@ -176,11 +176,17 @@
       "attack": ["T1595.001", "T1046"], "d3fend": ["D3-NM"], "capec": ["CAPEC-300"]
     },
     {
-      "id": "detect.services", "major": 1, "status": "planned",
-      "name": "Service detection", "description": "Identify the service, product and version behind an open port.",
+      "id": "detect.services", "major": 1, "status": "routed",
+      "name": "Service detection", "description": "Identify the service, product and version behind a known open port with credential-free handshakes: read what the server sends first, send protocol greetings and a TLS handshake, never a login, bind or state-changing command. Targets are the job's host:port services, never ranges. Reports each service with the same value as the input port, its application protocol, product, version and CPE when the handshake gives them, a bounded banner, TLS, and anonymous access only when the handshake itself proves it.",
       "phase": "discover.active", "tier_floor": 1,
       "in_ports": ["service"], "out_ports": ["service"],
-      "params": [],
+      "params": [
+        {"name": "ports", "type": "port_list", "description": "Only probe services on these ports and port ranges; others are skipped."},
+        {"name": "transports", "type": "string_list", "description": "Transports to probe (default tcp); udp is opt-in.", "enum": ["tcp", "udp"]},
+        {"name": "depth", "type": "string", "description": "fast (default): what the server sends first and the probes for the port's usual protocols; thorough: also the other credential-free probes, bounded per port.", "enum": ["fast", "thorough"]},
+        {"name": "rate", "type": "integer", "description": "Services started per second, at most.", "min": 1, "max": 1000},
+        {"name": "timeout_ms", "type": "integer", "description": "Timeout of one connection in milliseconds.", "min": 100, "max": 10000}
+      ],
       "outputs": [
         {"select": "assets[type=service]", "paths": ["value"], "any_of": ["technical.service.app_protocol", "technical.service.product"]}
       ],
