@@ -1,0 +1,454 @@
+{
+ "version": 1,
+ "providers": [
+  {
+   "id": "alienvault",
+   "display": "AlienVault OTX",
+   "format": "key",
+   "hosts": [
+    "otx.alienvault.com"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "bevigil",
+   "display": "BeVigil",
+   "format": "key",
+   "hosts": [
+    "osint.bevigil.com"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "bufferover",
+   "display": "BufferOver",
+   "format": "key",
+   "hosts": [
+    "tls.bufferover.run"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "builtwith",
+   "display": "BuiltWith",
+   "format": "key",
+   "hosts": [
+    "api.builtwith.com"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "c99",
+   "display": "C99",
+   "format": "key",
+   "hosts": [
+    "api.c99.nl"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "censys",
+   "display": "Censys",
+   "format": "pair",
+   "pair_hint": "TOKEN:ORG_ID",
+   "hosts": [
+    "api.platform.censys.io"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "certspotter",
+   "display": "Cert Spotter",
+   "format": "key",
+   "hosts": [
+    "api.certspotter.com"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "chaos",
+   "display": "Chaos",
+   "format": "key",
+   "hosts": [
+    "dns.projectdiscovery.io"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "chinaz",
+   "display": "Chinaz",
+   "format": "key",
+   "hosts": [
+    "apidatav2.chinaz.com"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "digitalyama",
+   "display": "DigitalYama",
+   "format": "key",
+   "hosts": [
+    "api.digitalyama.com"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "dnsdb",
+   "display": "DNSDB",
+   "format": "key",
+   "hosts": [
+    "api.dnsdb.info"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "dnsdumpster",
+   "display": "DNSDumpster",
+   "format": "key",
+   "hosts": [
+    "api.dnsdumpster.com"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "dnsrepo",
+   "display": "DNSRepo",
+   "format": "pair",
+   "pair_hint": "TOKEN:API_KEY",
+   "hosts": [
+    "dnsarchive.net"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "domainsproject",
+   "display": "Domains Project",
+   "format": "pair",
+   "pair_hint": "USERNAME:PASSWORD",
+   "hosts": [
+    "api.domainsproject.org"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "driftnet",
+   "display": "Driftnet",
+   "format": "key",
+   "hosts": [
+    "api.driftnet.io"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "fofa",
+   "display": "FOFA",
+   "format": "pair",
+   "pair_hint": "EMAIL:KEY",
+   "hosts": [
+    "fofa.info"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "fullhunt",
+   "display": "FullHunt",
+   "format": "key",
+   "hosts": [
+    "fullhunt.io"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "github",
+   "display": "GitHub",
+   "format": "key",
+   "hosts": [
+    "api.github.com",
+    "raw.githubusercontent.com"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "gitlab",
+   "display": "GitLab",
+   "format": "key",
+   "hosts": [
+    "gitlab.com"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "hackertarget",
+   "display": "HackerTarget",
+   "format": "key",
+   "hosts": [
+    "api.hackertarget.com"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "intelx",
+   "display": "Intelligence X",
+   "format": "pair",
+   "pair_hint": "HOST:KEY",
+   "hosts": [],
+   "tools": [
+    "subfinder"
+   ],
+   "endpoint": "host",
+   "host_rule": "^([a-z0-9-]+\\.)*intelx\\.io$"
+  },
+  {
+   "id": "leakix",
+   "display": "LeakIX",
+   "format": "key",
+   "hosts": [
+    "leakix.net"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "merklemap",
+   "display": "MerkleMap",
+   "format": "key",
+   "hosts": [
+    "api.merklemap.com"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "netlas",
+   "display": "Netlas",
+   "format": "key",
+   "hosts": [
+    "app.netlas.io"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "onyphe",
+   "display": "Onyphe",
+   "format": "key",
+   "hosts": [
+    "www.onyphe.io"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "profundis",
+   "display": "Profundis",
+   "format": "key",
+   "hosts": [
+    "api.profundis.io"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "pugrecon",
+   "display": "PugRecon",
+   "format": "key",
+   "hosts": [
+    "pugrecon.com"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "quake",
+   "display": "Quake",
+   "format": "key",
+   "hosts": [
+    "quake.360.net"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "reconeer",
+   "display": "Reconeer",
+   "format": "key",
+   "hosts": [
+    "www.reconeer.com"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "redhuntlabs",
+   "display": "RedHunt Labs",
+   "format": "pair",
+   "pair_hint": "ENDPOINT_URL:KEY",
+   "hosts": [],
+   "tools": [
+    "subfinder"
+   ],
+   "endpoint": "url",
+   "host_rule": "^([a-z0-9-]+\\.)*redhuntlabs\\.com$"
+  },
+  {
+   "id": "robtex",
+   "display": "Robtex",
+   "format": "key",
+   "hosts": [
+    "proapi.robtex.com"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "rsecloud",
+   "display": "RSECloud",
+   "format": "key",
+   "hosts": [
+    "api.rsecloud.com"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "securitytrails",
+   "display": "SecurityTrails",
+   "format": "key",
+   "hosts": [
+    "api.securitytrails.com"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "shodan",
+   "display": "Shodan",
+   "format": "key",
+   "hosts": [
+    "api.shodan.io"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "threatbook",
+   "display": "ThreatBook",
+   "format": "key",
+   "hosts": [
+    "api.threatbook.cn"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "urlscan",
+   "display": "urlscan.io",
+   "format": "key",
+   "hosts": [
+    "urlscan.io"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "virustotal",
+   "display": "VirusTotal",
+   "format": "key",
+   "hosts": [
+    "www.virustotal.com"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "whoisxmlapi",
+   "display": "WhoisXML API",
+   "format": "key",
+   "hosts": [
+    "subdomains.whoisxmlapi.com"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "windvane",
+   "display": "Windvane",
+   "format": "key",
+   "hosts": [
+    "windvane.lichoin.com"
+   ],
+   "tools": [
+    "subfinder"
+   ]
+  },
+  {
+   "id": "zoomeyeapi",
+   "display": "ZoomEye",
+   "format": "pair",
+   "pair_hint": "HOST:KEY",
+   "hosts": [],
+   "tools": [
+    "subfinder"
+   ],
+   "endpoint": "host",
+   "host_rule": "^zoomeye\\.(ai|hk|org)$",
+   "host_prefix": "api."
+  }
+ ]
+}
