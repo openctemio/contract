@@ -45,6 +45,39 @@ func TestWebDiscoveryTiers(t *testing.T) {
 	}
 }
 
+// capture.screenshot is routed: a T1 browser capture of a web origin with
+// bounded params, reported on the origin itself (no output port of its own).
+func TestCaptureScreenshot(t *testing.T) {
+	c, ok := Lookup("capture.screenshot@1")
+	if !ok || !c.Runnable() || c.TierFloor != 1 || c.Phase != "discover.active" {
+		t.Fatalf("capture.screenshot@1 = %+v, %v; want routed at tier 1", c, ok)
+	}
+	if len(c.InPorts) != 1 || c.InPorts[0] != "url" || len(c.OutPorts) != 0 || !c.MayEmit("asset:web_origin") {
+		t.Fatalf("ports %v/%v", c.InPorts, c.OutPorts)
+	}
+	want := map[string][3]any{
+		"page_timeout": {"integer", 5, 60},
+		"full_page":    {"boolean", nil, nil},
+		"max_requests": {"integer", 10, 500},
+	}
+	if len(c.Params) != len(want) {
+		t.Fatalf("params %+v", c.Params)
+	}
+	for _, p := range c.Params {
+		w, ok := want[p.Name]
+		if !ok || string(p.Type) != w[0] {
+			t.Errorf("param %s %s", p.Name, p.Type)
+			continue
+		}
+		if w[1] != nil && (p.Min == nil || p.Max == nil || int(*p.Min) != w[1].(int) || int(*p.Max) != w[2].(int)) {
+			t.Errorf("param %s bounds %v..%v", p.Name, p.Min, p.Max)
+		}
+	}
+	if len(c.Outputs) != 1 || c.Outputs[0].Select != "assets[type=web_origin]" {
+		t.Fatalf("outputs %+v", c.Outputs)
+	}
+}
+
 func TestPlatformIDsKept(t *testing.T) {
 	for _, id := range platformIDs {
 		c, ok := Lookup(id + "@1")

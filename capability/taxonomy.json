@@ -228,13 +228,18 @@
       "attack": ["T1596.003"], "d3fend": ["D3-CI"]
     },
     {
-      "id": "capture.screenshot", "major": 1, "status": "planned",
-      "name": "Screenshot", "description": "Capture a screenshot of a web page.",
+      "id": "capture.screenshot", "major": 1, "status": "routed",
+      "name": "Screenshot", "description": "Load a web origin in a headless browser and report a picture of the page with its status, title, server and final URL, as the origin's web evidence. The browser sends GET and HEAD only, to the job's targets and web scope only, opens no WebSocket or WebRTC connection, downloads nothing and changes nothing on the target; the page has a time budget and the picture is capped in pixels and size.",
       "phase": "discover.active", "tier_floor": 1,
-      "in_ports": ["url"], "out_ports": ["url"],
-      "params": [],
+      "in_ports": ["url"], "out_ports": [],
+      "extra_outputs": ["asset:web_origin"],
+      "params": [
+        {"name": "page_timeout", "type": "integer", "description": "Seconds one page may take to load before its scripts are stopped and the picture is taken.", "min": 5, "max": 60},
+        {"name": "full_page", "type": "boolean", "description": "Capture the page from its top down to 2400 pixels instead of the viewport."},
+        {"name": "max_requests", "type": "integer", "description": "Most requests one page may make (the page itself, its scripts, styles and images); later ones are refused.", "min": 10, "max": 500}
+      ],
       "outputs": [
-        {"select": "assets[type=web_origin|web_application]", "paths": ["value"]}
+        {"select": "assets[type=web_origin]", "paths": ["value", "properties.web_evidence"]}
       ],
       "attack": ["T1594"]
     },

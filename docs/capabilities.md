@@ -49,7 +49,7 @@ A capability is an act a scan tool performs. The capability carries the phase, t
 | [`probe.http@1`](#probehttp1) | routed | discover.active | T1 | `hostname`, `ip`, `service`, `url` | `url`, `ip` | T1595, T1594 | D3-AI |
 | [`fingerprint.tech@1`](#fingerprinttech1) | planned | discover.active | T1 | `url`, `service` | `url`, `service` | T1592.002 | D3-SWI |
 | [`check.tls@1`](#checktls1) | planned | assess | T1 | `service`, `url` | `finding` | T1596.003 | D3-CI |
-| [`capture.screenshot@1`](#capturescreenshot1) | planned | discover.active | T1 | `url` | `url` | T1594 | - |
+| [`capture.screenshot@1`](#capturescreenshot1) | routed | discover.active | T1 | `url` | none | T1594 | - |
 | [`crawl.web@1`](#crawlweb1) | routed | discover.active | T1 | `url` | `url`, `endpoint` | T1594, T1595.003 | D3-AI |
 | [`discover.cloud@1`](#discovercloud1) | planned | discover.passive | T0 | `cloud_account` | `cloud_account` | T1580, T1526 | D3-AI |
 | [`discover.repositories@1`](#discoverrepositories1) | later | discover.passive | T0 | none | `repository` | T1593.003 | D3-AI |
@@ -313,15 +313,22 @@ Required output (every selected record):
 
 ### capture.screenshot@1
 
-Screenshot: Capture a screenshot of a web page.
+Screenshot: Load a web origin in a headless browser and report a picture of the page with its status, title, server and final URL, as the origin's web evidence. The browser sends GET and HEAD only, to the job's targets and web scope only, opens no WebSocket or WebRTC connection, downloads nothing and changes nothing on the target; the page has a time budget and the picture is capped in pixels and size.
 
-- Status: planned; phase `discover.active` (CTEM discovery); tier floor T1.
-- Ports: in `url`, out `url`.
+- Status: routed; phase `discover.active` (CTEM discovery); tier floor T1.
+- Ports: in `url`, out none.
+- Also emits: `asset:web_origin`.
 - References: ATT&CK T1594.
+
+| Param | Type | Values | Description |
+|---|---|---|---|
+| `page_timeout` | integer | 5..60 | Seconds one page may take to load before its scripts are stopped and the picture is taken. |
+| `full_page` | boolean |  | Capture the page from its top down to 2400 pixels instead of the viewport. |
+| `max_requests` | integer | 10..500 | Most requests one page may make (the page itself, its scripts, styles and images); later ones are refused. |
 
 Required output (every selected record):
 
-- `assets[type=web_origin|web_application]` carries `value`.
+- `assets[type=web_origin]` carries `value`, `properties.web_evidence`.
 
 ### crawl.web@1
 
