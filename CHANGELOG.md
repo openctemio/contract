@@ -4,6 +4,8 @@ All notable changes to this module. The format follows [Keep a Changelog](https:
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-05
+
 ### Changed: capture.screenshot@1 is routed
 
 - `capture.screenshot@1` goes from `planned` to `routed` (tier 1, phase `discover.active`). The act is stated: a headless browser loads a web origin with GET and HEAD only, to the job's targets and web scope only, with no WebSocket or WebRTC connection and no download, under a time budget, and the picture is capped in pixels and size.
