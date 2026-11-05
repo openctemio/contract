@@ -4,6 +4,12 @@ All notable changes to this module. The format follows [Keep a Changelog](https:
 
 ## [Unreleased]
 
+### Added: package webpath, the one reading of a web request path
+
+- `CleanPath`: the path a server sees (percent-decoded, backslashes as slashes, dot segments resolved); encoded slashes, backslashes and NUL, control characters and `..;` are refused.
+- `Readings`, `Denied` (case-insensitive prefix, over-blocking on purpose, every reading incl. the one without `;params`) and `Under` (segment boundary): the platform filters planned paths and the sensor's web scope refuses requests with the same code.
+- `Destructive` and `DestructiveVerbs`: a path that names a state-changing action (`/logout`, `/log-out`, `/admin/deleteUser`, `/resetPassword`) is never requested by discovery and never followed by a crawler.
+
 ## [1.2.0] - 2026-11-05
 
 ### Added: package secretref, the contract of task secrets
