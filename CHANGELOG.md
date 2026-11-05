@@ -4,6 +4,12 @@ All notable changes to this module. The format follows [Keep a Changelog](https:
 
 ## [Unreleased]
 
+### Changed: capture.screenshot@1 is routed
+
+- `capture.screenshot@1` goes from `planned` to `routed` (tier 1, phase `discover.active`). The act is stated: a headless browser loads a web origin with GET and HEAD only, to the job's targets and web scope only, with no WebSocket or WebRTC connection and no download, under a time budget, and the picture is capped in pixels and size.
+- It reports on its input origin (`extra_outputs: asset:web_origin`, no output port of its own): the origin's `properties.web_evidence` (the platform's web evidence shape). Outputs select `assets[type=web_origin]` with `value` and `properties.web_evidence`; `web_application` is no longer named (no implementation emits it).
+- Params: `page_timeout` (5-60 seconds), `full_page` (boolean), `max_requests` (10-500 per page). The major stays 1 (contract versions stay v1 before 1.0); the capability had no implementation.
+
 ## [1.4.0] - 2026-11-05
 
 ### Changed: service detection is routed
