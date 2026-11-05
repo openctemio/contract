@@ -4,6 +4,12 @@ All notable changes to this module. The format follows [Keep a Changelog](https:
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-11-05
+
+### Fixed: release of 1.5.0
+
+- The v1.5.0 tag points at a commit without its changelog section, so its release was not published. 1.5.1 has the same code; use 1.5.1.
+
 ## [1.5.0] - 2026-11-05
 
 ### Changed: capture.screenshot@1 is routed
