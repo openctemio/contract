@@ -45,7 +45,7 @@ A capability is an act a scan tool performs. The capability carries the phase, t
 | [`lookup.asn@1`](#lookupasn1) | routed | discover.passive | T0 | `ip`, `cidr` | `ip`, `cidr` | T1590.005, T1596.002 | D3-AI, D3-NM |
 | [`discover.hosts@1`](#discoverhosts1) | routed | discover.active | T1 | `ip`, `cidr` | `ip` | T1595.001, T1018 | D3-NM |
 | [`scan.ports@1`](#scanports1) | routed | discover.active | T1 | `hostname`, `ip` | `service`, `ip` | T1595.001, T1046 | D3-NM |
-| [`detect.services@1`](#detectservices1) | planned | discover.active | T1 | `service` | `service` | T1595.001, T1592.002 | D3-SWI |
+| [`detect.services@1`](#detectservices1) | routed | discover.active | T1 | `service` | `service` | T1595.001, T1592.002 | D3-SWI |
 | [`probe.http@1`](#probehttp1) | routed | discover.active | T1 | `hostname`, `ip`, `service`, `url` | `url`, `ip` | T1595, T1594 | D3-AI |
 | [`fingerprint.tech@1`](#fingerprinttech1) | planned | discover.active | T1 | `url`, `service` | `url`, `service` | T1592.002 | D3-SWI |
 | [`check.tls@1`](#checktls1) | planned | assess | T1 | `service`, `url` | `finding` | T1596.003 | D3-CI |
@@ -255,11 +255,19 @@ Required output (every selected record):
 
 ### detect.services@1
 
-Service detection: Identify the service, product and version behind an open port.
+Service detection: Identify the service, product and version behind a known open port with credential-free handshakes: read what the server sends first, send protocol greetings and a TLS handshake, never a login, bind or state-changing command. Targets are the job's host:port services, never ranges. Reports each service with the same value as the input port, its application protocol, product, version and CPE when the handshake gives them, a bounded banner, TLS, and anonymous access only when the handshake itself proves it.
 
-- Status: planned; phase `discover.active` (CTEM discovery); tier floor T1.
+- Status: routed; phase `discover.active` (CTEM discovery); tier floor T1.
 - Ports: in `service`, out `service`.
 - References: ATT&CK T1595.001, T1592.002; D3FEND D3-SWI; CAPEC-541.
+
+| Param | Type | Values | Description |
+|---|---|---|---|
+| `ports` | port_list |  | Only probe services on these ports and port ranges; others are skipped. |
+| `transports` | string_list | `tcp`, `udp` | Transports to probe (default tcp); udp is opt-in. |
+| `depth` | string | `fast`, `thorough` | fast (default): what the server sends first and the probes for the port's usual protocols; thorough: also the other credential-free probes, bounded per port. |
+| `rate` | integer | 1..1000 | Services started per second, at most. |
+| `timeout_ms` | integer | 100..10000 | Timeout of one connection in milliseconds. |
 
 Required output (every selected record):
 
