@@ -20,15 +20,28 @@ var platformIDs = []string{
 	"iac.misconfig", "container.image", "network_va.connector",
 	"intel.passive", "check.takeover", "detect.services", "fingerprint.tech",
 	"check.tls", "capture.screenshot", "host.credentialed", "cloud.posture", "verify.finding",
-	"lookup.rdap", "lookup.asn", "discover.hosts",
+	"lookup.rdap", "lookup.asn", "discover.hosts", "enumerate.web_paths",
 }
 
 func TestEmbeddedTaxonomyLoads(t *testing.T) {
 	if _, err := load(taxonomyJSON); err != nil {
 		t.Fatal(err)
 	}
-	if got := len(All()); got != 35 {
-		t.Fatalf("capabilities = %d, want 35 (30 v1 + 5 later)", got)
+	if got := len(All()); got != 37 {
+		t.Fatalf("capabilities = %d, want 37 (31 v1 + 6 later)", got)
+	}
+}
+
+// Path discovery is volume, not payloads: GET/HEAD candidates at T1. Parameter
+// discovery changes request semantics and stays T2 (reserved, not runnable).
+func TestWebDiscoveryTiers(t *testing.T) {
+	paths, ok := Lookup("enumerate.web_paths@1")
+	if !ok || paths.TierFloor != 1 || !paths.Runnable() {
+		t.Fatalf("enumerate.web_paths@1 = %+v, %v; want routed at tier 1", paths, ok)
+	}
+	params, ok := Lookup("enumerate.web_params@1")
+	if !ok || params.TierFloor != 2 || params.Runnable() {
+		t.Fatalf("enumerate.web_params@1 = %+v, %v; want reserved (later) at tier 2", params, ok)
 	}
 }
 
