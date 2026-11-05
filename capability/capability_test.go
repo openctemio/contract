@@ -75,6 +75,7 @@ func TestRoutedParamsMatchPlatform(t *testing.T) {
 		"iac.misconfig":        {"frameworks"},
 		"container.image":      {"os_pkgs"},
 		"network_va.connector": {"policy"},
+		"detect.services":      {"ports", "transports", "depth", "rate", "timeout_ms"},
 	}
 	for id, names := range want {
 		c, _ := Lookup(id)
@@ -328,5 +329,48 @@ func TestEnumerateSubdomains(t *testing.T) {
 	}
 	if p, _ := Lookup("discover.subdomains@1"); p.TierFloor != 0 {
 		t.Error("passive discovery must stay tier 0")
+	}
+}
+
+// detect.services is tier 1 discovery on known open ports: UDP stays opt-in
+// (an enum value, never implied), depth is a closed set and every number is
+// bounded, so no job can turn it into a sweep or a flood.
+func TestDetectServices(t *testing.T) {
+	c, ok := Lookup("detect.services@1")
+	if !ok || !c.Runnable() || c.TierFloor != 1 || c.Phase != "discover.active" {
+		t.Fatalf("detect.services@1 = %+v, %v; want routed at tier 1 in discover.active", c, ok)
+	}
+	if !reflect.DeepEqual(c.InPorts, []PortType{"service"}) || !reflect.DeepEqual(c.OutPorts, []PortType{"service"}) {
+		t.Errorf("ports in %v out %v, want service only", c.InPorts, c.OutPorts)
+	}
+	want := map[string]struct {
+		typ      ParamType
+		enum     []string
+		min, max int
+	}{
+		"ports":      {typ: ParamPortList},
+		"transports": {typ: ParamStringList, enum: []string{"tcp", "udp"}},
+		"depth":      {typ: ParamString, enum: []string{"fast", "thorough"}},
+		"rate":       {typ: ParamInteger, min: 1, max: 1000},
+		"timeout_ms": {typ: ParamInteger, min: 100, max: 10000},
+	}
+	if len(c.Params) != len(want) {
+		t.Fatalf("params = %d, want %d", len(c.Params), len(want))
+	}
+	for _, p := range c.Params {
+		w, ok := want[p.Name]
+		if !ok {
+			t.Errorf("unexpected param %s", p.Name)
+			continue
+		}
+		if p.Type != w.typ || !reflect.DeepEqual(p.Enum, w.enum) {
+			t.Errorf("%s: type %s enum %v, want %s %v", p.Name, p.Type, p.Enum, w.typ, w.enum)
+		}
+		if w.typ == ParamInteger && (p.Min == nil || p.Max == nil || *p.Min != w.min || *p.Max != w.max) {
+			t.Errorf("%s: bounds %v..%v, want %d..%d", p.Name, p.Min, p.Max, w.min, w.max)
+		}
+	}
+	if len(c.Outputs) != 1 || !reflect.DeepEqual(c.Outputs[0].AnyOf, []string{"technical.service.app_protocol", "technical.service.product"}) {
+		t.Errorf("outputs changed: %+v", c.Outputs)
 	}
 }
