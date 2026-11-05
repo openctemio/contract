@@ -4,6 +4,14 @@ All notable changes to this module. The format follows [Keep a Changelog](https:
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-05
+
+### Added: package webpath, the one reading of a web request path
+
+- `CleanPath`: the path a server sees (percent-decoded, backslashes as slashes, dot segments resolved); encoded slashes, backslashes and NUL, control characters and `..;` are refused.
+- `Readings`, `Denied` (case-insensitive prefix, over-blocking on purpose, every reading incl. the one without `;params`) and `Under` (segment boundary): the platform filters planned paths and the sensor's web scope refuses requests with the same code.
+- `Destructive` and `DestructiveVerbs`: a path that names a state-changing action (`/logout`, `/log-out`, `/admin/deleteUser`, `/resetPassword`) is never requested by discovery and never followed by a crawler.
+
 ### Added: web path discovery capabilities
 
 - `enumerate.web_paths@1` (routed, tier 1, phase `discover.active`): request platform-supplied candidate paths on a web origin with GET or HEAD only and report the ones that answer differently from the origin's calibrated not-found response, as endpoints with status, content type, size and a body hash (never the body). Params: `lists` (`derived`, `s`, `m`, `l`), `extensions` (`auto`, `none`, `backup`), `max_requests_per_origin` (50-100000), `rate` (1-50 requests per second), `exclude_paths`. There is no recursion param: the platform plans each level.
