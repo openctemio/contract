@@ -4,6 +4,12 @@ All notable changes to this module. The format follows [Keep a Changelog](https:
 
 ## [Unreleased]
 
+### Added: identity package (User-Agent rotation)
+
+- New package `identity`: `CheckUserAgent` and `CheckUserAgents` (1 to 256 printable ASCII characters, no line break, no leading or trailing space; at most 200 values, none twice), `CheckKey`, `CanonicalHost`, and `SelectIndex` / `SelectUserAgent`, the rule that picks one value of a rotation list per (scan run key, target host).
+- The choice is sticky (every request of a run to a host carries the same value, whatever the port, scheme or case) and spreads runs and hosts evenly (HMAC-SHA-256 keyed by the run key over a fixed label and the canonical host). The rule is versioned by its label; a test pins its output.
+- Additive: no existing package changes.
+
 ## [1.5.1] - 2026-11-05
 
 ### Fixed: release of 1.5.0

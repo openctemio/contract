@@ -24,6 +24,7 @@ checks this).
 | `politeness` | The per-host politeness keys of scan work: which hosts a job touches and when two jobs conflict. |
 | `edgeprotect` | Recognises answers that came from an edge protection (CDN or WAF) instead of the service. |
 | `addrscope` | The one definition of an internal network address a shared scanner must never reach. |
+| `identity` | How a scan's requests identify themselves: the bounds and validation of User-Agent values and rotation lists, and the one rule that picks a list value per scan run and target host (sticky per run and host, spread evenly), so the platform shows the value the sensor sends. |
 | `secretref` | How a secret reaches a tool a sensor runs: the secret refs a signed job carries (kind, class, slot, audience, local policy), the sealed per-task fetch (request, answer, HPKE info), the value shapes and their validators, and the registry of third-party providers with the hosts each key may be sent to. |
 | `source` | Where the code of a platform code scan comes from: repository, branch and exact commit. |
 | `transfer` | A separate Go module, `github.com/openctemio/contract/transfer`: downloads files from an ordered list of origins, and the signed bundle format. It is separate because it depends on the Prometheus client, which the root module must not. |
