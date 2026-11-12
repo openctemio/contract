@@ -8,11 +8,12 @@ import (
 )
 
 func TestNormalizeDomain(t *testing.T) {
-	for in, want := range map[string]string{
-		"Example.COM.":          "example.com",
-		" a.example.org ":       "a.example.org",
-		"xn--bcher-kva.example": "xn--bcher-kva.example",
+	for _, c := range []struct{ in, want string }{
+		{"Example.COM.", "example.com"},
+		{"\ta.example.org\n", "a.example.org"},
+		{"xn--bcher-kva.example", "xn--bcher-kva.example"},
 	} {
+		in, want := c.in, c.want
 		got, err := NormalizeDomain(in)
 		if err != nil || got != want {
 			t.Errorf("NormalizeDomain(%q) = %q, %v; want %q", in, got, err, want)
