@@ -43,6 +43,7 @@ A capability is an act a scan tool performs. The capability carries the phase, t
 | [`resolve.dns@1`](#resolvedns1) | routed | discover.passive | T0 | `hostname` | `hostname`, `ip` | T1590.002 | D3-NM |
 | [`lookup.rdap@1`](#lookuprdap1) | routed | discover.passive | T0 | `root_domain` | `root_domain` | T1596.002, T1590.001 | D3-AI |
 | [`lookup.asn@1`](#lookupasn1) | routed | discover.passive | T0 | `ip`, `cidr` | `ip`, `cidr` | T1590.005, T1596.002 | D3-AI, D3-NM |
+| [`lookup.ct@1`](#lookupct1) | routed | discover.passive | T0 | `root_domain` | `hostname` | T1596.003 | D3-AI |
 | [`discover.hosts@1`](#discoverhosts1) | routed | discover.active | T1 | `ip`, `cidr` | `ip` | T1595.001, T1018 | D3-NM |
 | [`scan.ports@1`](#scanports1) | routed | discover.active | T1 | `hostname`, `ip` | `service`, `ip` | T1595.001, T1046 | D3-NM |
 | [`detect.services@1`](#detectservices1) | routed | discover.active | T1 | `service` | `service` | T1595.001, T1592.002 | D3-SWI |
@@ -216,6 +217,14 @@ Required output (every selected record):
 
 - `assets[type=ip_address]` carries `value`, `technical.ip_address.asn`.
 - `assets[type=ip_range]` carries `value`, `technical.ip_address.asn`.
+
+### lookup.ct@1
+
+Certificate Transparency lookup: Certificates that public Certificate Transparency search services list for a root domain and the names under it, with their issuer, serial and validity. Run by a platform-owned sensor for the platform's certificate monitoring, not as a workflow node; no packet reaches the domain's hosts. The answer is the typed output of package ctlookup (records and per-source status), not a CTIS document.
+
+- Status: routed; phase `discover.passive` (CTEM discovery); tier floor T0; cross-cutting (not a workflow node).
+- Ports: in `root_domain`, out `hostname`.
+- References: ATT&CK T1596.003; D3FEND D3-AI; CAPEC-169.
 
 ### discover.hosts@1
 

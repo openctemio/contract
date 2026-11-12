@@ -4,6 +4,13 @@ All notable changes to this module. The format follows [Keep a Changelog](https:
 
 ## [Unreleased]
 
+### Added: lookup.ct@1 (Certificate Transparency lookup)
+
+- New capability `lookup.ct@1` in the taxonomy: routed, cross-cutting (the platform's certificate monitoring runs it; it is no workflow node), phase `discover.passive`, tier 0, in `root_domain`, out `hostname`. No packet reaches the domain's hosts; the sensor asks public CT search services only.
+- New package `ctlookup`: the input (`domain`, optional Cert Spotter cursor `after`), the typed answer (`records` with source, entry id, DNS names, issuer, serial and validity; `source_status` per source with `ok`, `rate_limited`, `unavailable` or `too_large` and an optional `retry_after_s`), the vendor hosts (`crt.sh`, `api.certspotter.com`), the bounds, and `Validate`, which the sensor and the platform both apply: names outside the queried domain are dropped and counted, wildcard labels removed, repeated records dropped, unreadable times cleared; an unknown source or state, or an answer over the bounds, is refused as a whole.
+- The `certspotter` provider key slot now also serves the `ctlog` tool (same host, `api.certspotter.com`).
+- Additive: no existing package changes behaviour.
+
 ## [1.6.0] - 2026-11-07
 
 ### Added: identity package (User-Agent rotation)

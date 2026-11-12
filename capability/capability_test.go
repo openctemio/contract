@@ -20,15 +20,15 @@ var platformIDs = []string{
 	"iac.misconfig", "container.image", "network_va.connector",
 	"intel.passive", "check.takeover", "detect.services", "fingerprint.tech",
 	"check.tls", "capture.screenshot", "host.credentialed", "cloud.posture", "verify.finding",
-	"lookup.rdap", "lookup.asn", "discover.hosts", "enumerate.web_paths",
+	"lookup.rdap", "lookup.asn", "lookup.ct", "discover.hosts", "enumerate.web_paths",
 }
 
 func TestEmbeddedTaxonomyLoads(t *testing.T) {
 	if _, err := load(taxonomyJSON); err != nil {
 		t.Fatal(err)
 	}
-	if got := len(All()); got != 37 {
-		t.Fatalf("capabilities = %d, want 37 (31 v1 + 6 later)", got)
+	if got := len(All()); got != 38 {
+		t.Fatalf("capabilities = %d, want 38 (32 v1 + 6 later)", got)
 	}
 }
 
@@ -75,6 +75,19 @@ func TestCaptureScreenshot(t *testing.T) {
 	}
 	if len(c.Outputs) != 1 || c.Outputs[0].Select != "assets[type=web_origin]" {
 		t.Fatalf("outputs %+v", c.Outputs)
+	}
+}
+
+// lookup.ct is routed, passive and cross-cutting: the platform's
+// certificate monitoring runs it on a platform sensor; it is no workflow
+// node and its answer is the typed ctlookup output, not a CTIS document.
+func TestLookupCT(t *testing.T) {
+	c, ok := Lookup("lookup.ct@1")
+	if !ok || !c.Runnable() || !c.CrossCutting || c.TierFloor != 0 || c.Phase != "discover.passive" {
+		t.Fatalf("lookup.ct@1 = %+v, %v; want routed, cross-cutting, tier 0", c, ok)
+	}
+	if len(c.InPorts) != 1 || c.InPorts[0] != "root_domain" || len(c.Params) != 0 || len(c.Outputs) != 0 {
+		t.Fatalf("lookup.ct@1 ports/params/outputs %v %v %v", c.InPorts, c.Params, c.Outputs)
 	}
 }
 
@@ -127,7 +140,7 @@ func TestTierFloors(t *testing.T) {
 		"discover.subdomains": 0, "resolve.dns": 0, "scan.ports": 1, "probe.http": 1,
 		"crawl.web": 1, "vuln.templates": 1, "dast.web": 2, "secrets.code": 0,
 		"sast.code": 0, "sca.deps": 0, "iac.misconfig": 0, "container.image": 0,
-		"network_va.connector": 1, "simulate.attack": 2, "lookup.rdap": 0, "lookup.asn": 0, "discover.hosts": 1,
+		"network_va.connector": 1, "simulate.attack": 2, "lookup.rdap": 0, "lookup.asn": 0, "lookup.ct": 0, "discover.hosts": 1,
 	}
 	for id, tier := range want {
 		c, _ := Lookup(id)
