@@ -11,8 +11,10 @@
 // reads it with the same rules (Validate), so both sides agree on what a
 // valid answer is, and the platform never trusts the sensor's copy:
 //
-//   - every name must be the queried domain or a name under it; a wildcard
-//     label ("*.") is removed; any other name is dropped and counted;
+//   - every name must be the queried domain or a name under it, optionally
+//     with one leading wildcard label ("*.a.example.com", kept: a wildcard
+//     certificate does not prove that a host exists); any other name is
+//     dropped and counted;
 //   - names are lower-case ASCII host names (an IDN in its xn-- form);
 //   - counts, lengths and the encoded size are bounded;
 //   - a failure of a CT source is a SourceStatus entry (rate_limited,
@@ -98,8 +100,8 @@ type Record struct {
 	// Cert Spotter issuance id).
 	EntryID string `json:"entry_id,omitempty"`
 	// DNSNames are the names of the certificate under the queried domain,
-	// normalised (lower case, no trailing dot, wildcard label removed),
-	// each once.
+	// normalised (lower case, no trailing dot; a leading wildcard label is
+	// kept as "*."), each once.
 	DNSNames []string `json:"dns_names"`
 	// Issuer is the issuer's name as the source gives it.
 	Issuer string `json:"issuer,omitempty"`
@@ -169,25 +171,33 @@ func CheckInput(in Input) (Input, error) {
 }
 
 // NormalizeName returns name in canonical form when it is domain or a name
-// under it: lower case, no trailing dot, and a leading wildcard label
-// removed ("*.a.example.com" is "a.example.com"). ok is false for anything
-// else (another domain, a name with a wildcard elsewhere, an address, an
-// e-mail address). domain must be normalised (NormalizeDomain).
+// under it: lower case, no trailing dot. One leading wildcard label is kept
+// ("*.A.Example.com." is "*.a.example.com"); Wildcard reports it. ok is
+// false for anything else (another domain, a wildcard anywhere but the
+// first label, an address, an e-mail address). domain must be normalised
+// (NormalizeDomain).
 func NormalizeName(name, domain string) (string, bool) {
 	n := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(name)), ".")
-	n = strings.TrimPrefix(n, "*.")
-	if !isHostName(n) {
+	host, wild := strings.CutPrefix(n, "*.")
+	if !isHostName(host) {
 		return "", false
 	}
-	if n != domain && !strings.HasSuffix(n, "."+domain) {
+	if host != domain && !strings.HasSuffix(host, "."+domain) {
 		return "", false
 	}
-	return n, true
+	if wild {
+		return "*." + host, true
+	}
+	return host, true
 }
+
+// Wildcard reports whether a normalised name is a wildcard name and
+// returns the name it covers ("*.a.example.com": "a.example.com", true).
+func Wildcard(name string) (string, bool) { return strings.CutPrefix(name, "*.") }
 
 // Validate checks out against the contract for the lookup of domain
 // (normalised) and returns the clean copy: names normalised and bounded to
-// the domain, records with no name or repeated (same source and entry id)
+// the domain (a leading wildcard label kept), records with no name or repeated (same source and entry id)
 // dropped, unreadable validity bounds cleared. An output that breaks the
 // contract as a whole (too many records, an unknown source or state, a
 // source listed twice) is an ErrInvalid error and nothing of it is used.
@@ -289,7 +299,7 @@ func knownSource(s string) bool { return s == SourceCRTSH || s == SourceCertSpot
 // isHostName: 1..253 bytes of dot-separated labels, each 1..63 bytes of
 // a-z, 0-9, '-' and '_' (seen in CT names), not starting or ending with '-'.
 func isHostName(s string) bool {
-	if s == "" || len(s) > MaxNameLength {
+	if s == "" || len(s) > MaxNameLength-2 {
 		return false
 	}
 	for _, l := range strings.Split(s, ".") {
