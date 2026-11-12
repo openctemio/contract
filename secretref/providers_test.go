@@ -95,6 +95,14 @@ func TestRegistry(t *testing.T) {
 	if ProvidersForTool("nuclei") != nil {
 		t.Fatal("nuclei queries no provider")
 	}
+	// The CT lookup tool (capability lookup.ct@1) takes only the optional
+	// Cert Spotter key, sent only to api.certspotter.com.
+	if got := ProvidersForTool("ctlog"); !slices.Equal(got, []string{"certspotter"}) {
+		t.Fatalf("ctlog providers = %v", got)
+	}
+	if p, _ := LookupProvider("certspotter"); !slices.Equal(p.Hosts, []string{"api.certspotter.com"}) {
+		t.Fatalf("certspotter hosts = %v", p.Hosts)
+	}
 }
 
 func TestLoadRegistryRefuses(t *testing.T) {

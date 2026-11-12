@@ -146,6 +146,15 @@
       "attack": ["T1590.005", "T1596.002"], "d3fend": ["D3-AI", "D3-NM"], "capec": ["CAPEC-169"]
     },
     {
+      "id": "lookup.ct", "major": 1, "status": "routed", "cross_cutting": true,
+      "name": "Certificate Transparency lookup", "description": "Certificates that public Certificate Transparency search services list for a root domain and the names under it, with their issuer, serial and validity. Run by a platform-owned sensor for the platform's certificate monitoring, not as a workflow node; no packet reaches the domain's hosts. The answer is the typed output of package ctlookup (records and per-source status), not a CTIS document.",
+      "phase": "discover.passive", "tier_floor": 0,
+      "in_ports": ["root_domain"], "out_ports": ["hostname"],
+      "params": [],
+      "outputs": [],
+      "attack": ["T1596.003"], "d3fend": ["D3-AI"], "capec": ["CAPEC-169"]
+    },
+    {
       "id": "discover.hosts", "major": 1, "status": "routed",
       "name": "Host discovery", "description": "Find the live addresses of a range or an address list with light probes (ICMP echo or a TCP connection to a few common ports), before deeper scans.",
       "phase": "discover.active", "tier_floor": 1,
