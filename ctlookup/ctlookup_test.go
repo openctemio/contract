@@ -42,9 +42,9 @@ func TestNormalizeName(t *testing.T) {
 	const d = "example.com"
 	ok := map[string]string{
 		"example.com":        "example.com",
-		"*.example.com":      "example.com",
+		"*.example.com":      "*.example.com",
 		"WWW.Example.com.":   "www.example.com",
-		"*.dev.example.com":  "dev.example.com",
+		"*.DEV.example.com.": "*.dev.example.com",
 		"_dmarc.example.com": "_dmarc.example.com",
 	}
 	for in, want := range ok {
@@ -82,7 +82,7 @@ func TestValidateBindsNamesToTheDomain(t *testing.T) {
 	if len(clean.Records) != 2 {
 		t.Fatalf("records %+v", clean.Records)
 	}
-	if got := clean.Records[0].DNSNames; !slices.Equal(got, []string{"example.com", "www.example.com"}) {
+	if got := clean.Records[0].DNSNames; !slices.Equal(got, []string{"*.example.com", "www.example.com"}) {
 		t.Errorf("names %v", got)
 	}
 	if clean.Records[0].NotAfter != "2026-03-31T17:00:00Z" {
@@ -96,6 +96,15 @@ func TestValidateBindsNamesToTheDomain(t *testing.T) {
 	}
 	if len(clean.SourceStatus) != 2 {
 		t.Errorf("status %+v", clean.SourceStatus)
+	}
+}
+
+func TestWildcard(t *testing.T) {
+	if h, ok := Wildcard("*.a.example.com"); !ok || h != "a.example.com" {
+		t.Fatalf("Wildcard = %q, %v", h, ok)
+	}
+	if _, ok := Wildcard("a.example.com"); ok {
+		t.Fatal("plain name read as a wildcard")
 	}
 }
 
